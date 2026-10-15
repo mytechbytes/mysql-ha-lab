@@ -1,0 +1,3 @@
+[mysqld]
+server_id   = 2
+report_host = mysql2

@@ -1,0 +1,71 @@
+x-mysql: &mysql
+  image: mysql:8.4
+  restart: unless-stopped
+  environment:
+    MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+    MYSQL_ROOT_HOST: "%"
+  networks: [cluster]
+
+services:
+  mysql1:
+    <<: *mysql
+    container_name: mysql1
+    hostname: mysql1
+    volumes:
+      - mysql1:/var/lib/mysql
+      - ./conf/common.cnf:/etc/mysql/conf.d/01-common.cnf:ro
+      - ./conf/mysql1.cnf:/etc/mysql/conf.d/02-node.cnf:ro
+  mysql2:
+    <<: *mysql
+    container_name: mysql2
+    hostname: mysql2
+    volumes:
+      - mysql2:/var/lib/mysql
+      - ./conf/common.cnf:/etc/mysql/conf.d/01-common.cnf:ro
+      - ./conf/mysql2.cnf:/etc/mysql/conf.d/02-node.cnf:ro
+  mysql3:
+    <<: *mysql
+    container_name: mysql3
+    hostname: mysql3
+    volumes:
+      - mysql3:/var/lib/mysql
+      - ./conf/common.cnf:/etc/mysql/conf.d/01-common.cnf:ro
+      - ./conf/mysql3.cnf:/etc/mysql/conf.d/02-node.cnf:ro
+  cluster-init:
+    image: mysql:8.4
+    container_name: cluster-init
+    restart: "no"
+    depends_on: [mysql1, mysql2, mysql3]
+    entrypoint: ["bash", "/scripts/init-cluster.sh"]
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      CLUSTER_ADMIN: ${CLUSTER_ADMIN}
+      CLUSTER_ADMIN_PASSWORD: ${CLUSTER_ADMIN_PASSWORD}
+      CLUSTER_NAME: ${CLUSTER_NAME}
+    volumes:
+      - ./scripts:/scripts:ro
+    networks: [cluster]
+  router:
+    image: container-registry.oracle.com/mysql/community-router:8.4
+    container_name: mysql-router
+    restart: unless-stopped
+    depends_on:
+      cluster-init:
+        condition: service_completed_successfully
+    environment:
+      MYSQL_HOST: mysql1
+      MYSQL_PORT: 3306
+      MYSQL_USER: ${CLUSTER_ADMIN}
+      MYSQL_PASSWORD: ${CLUSTER_ADMIN_PASSWORD}
+      MYSQL_INNODB_CLUSTER_MEMBERS: 3
+    ports:
+      - "6446:6446"
+      - "6447:6447"
+    networks: [cluster]
+networks:
+  cluster:
+    name: ${NETWORK_CLUSTER_NAME}
+volumes:
+  mysql1: {}
+  mysql2: {}
+  mysql3: {}

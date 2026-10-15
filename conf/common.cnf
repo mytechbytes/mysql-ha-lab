@@ -1,0 +1,18 @@
+[mysqld]
+# Group replication prerequisites
+gtid_mode                 = ON
+enforce_gtid_consistency  = ON
+log_bin                   = binlog
+log_replica_updates       = ON
+binlog_checksum           = NONE
+
+# Group replication works only with InnoDB; block engines that would break it
+disabled_storage_engines  = "MyISAM,BLACKHOLE,FEDERATED,ARCHIVE,MEMORY"
+
+# Lab-friendly sizing
+innodb_buffer_pool_size   = 256M
+max_connections           = 200
+
+# General
+character_set_server      = utf8mb4
+collation_server          = utf8mb4_0900_ai_ci

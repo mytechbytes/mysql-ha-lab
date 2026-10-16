@@ -134,18 +134,20 @@ From the host: `localhost:6446`. From containers on the same network: `mysql-rou
 ## Failover test
 
 ```bash
-# write some data
-docker exec mysql2 mysql -h mysql-router -P 6446 -uclusteradmin -padminpass -e \
-  "CREATE DATABASE IF NOT EXISTS app;
-   CREATE TABLE IF NOT EXISTS app.t(id INT PRIMARY KEY, v VARCHAR(20));
-   INSERT INTO app.t VALUES (1,'before');"
+# helper: ask the router which node answered
+q() { docker run --rm --network mySqlClusterNetwork mysql:8.4 \
+      mysql -h mysql-router -P "$1" -uclusteradmin -padminpass -N -e "SELECT @@hostname" 2>/dev/null; }
 
-# simulate a crash of the primary
-docker kill mysql1
+q 6446   # current primary
+q 6447   # a secondary
 
-# a new primary is elected within seconds; the same port still works
-docker exec mysql2 mysql -h mysql-router -P 6446 -uclusteradmin -padminpass -e \
-  "SELECT @@hostname; INSERT INTO app.t VALUES (2,'after');"
+# kill the primary and measure how long writes are unavailable
+P=$(q 6446); echo "killing $P"; docker kill "$P"; s=$(date +%s)
+until [ -n "$(q 6446)" ]; do sleep 1; done
+echo "new primary $(q 6446) after $(( $(date +%s) - s ))s"
+
+# bring the old primary back: it rejoins as a SECONDARY
+docker start "$P"
 ```
 
 Because of `restart: unless-stopped`, Docker restarts `mysql1` and it rejoins as a **secondary**. Use `docker stop mysql1` instead to keep it down.

@@ -1,0 +1,17 @@
+global:
+  scrape_interval: 5s
+  evaluation_interval: 5s
+
+scrape_configs:
+  - job_name: mysql
+    static_configs:
+      - targets: ["exporter-mysql1:9104"]
+        labels: { node: mysql1 }
+      - targets: ["exporter-mysql2:9104"]
+        labels: { node: mysql2 }
+      - targets: ["exporter-mysql3:9104"]
+        labels: { node: mysql3 }
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

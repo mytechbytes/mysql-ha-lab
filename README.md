@@ -193,6 +193,78 @@ Expect about 10–15 seconds of write downtime. The group first marks the dead n
 
 ---
 
+## Recovery and data consistency
+
+When a killed node is started again, it catches up on everything it missed **before** it serves any traffic. No committed data is lost.
+
+### What happens on `docker start`
+
+1. **Starts read-only.** The node comes up with `super_read_only=ON`, so nothing can write to it while it's out of date.
+2. **Rejoins the group.** Its Group Replication settings are persisted in the data volume (`mysqld-auto.cnf`), so it rejoins automatically. State goes `OFFLINE` → `RECOVERING` → `ONLINE`.
+3. **Compares GTIDs.** Every transaction has a unique ID (GTID). The node checks which GTIDs it has against the group and requests the missing ones.
+4. **Catches up**, in one of two ways:
+   - **Incremental recovery** (usual): copies the missing transactions from a donor's binary log and applies them.
+   - **Clone**: if the donor no longer has those binary logs, copies a full snapshot of the donor's data instead.
+5. **Goes ONLINE** only when fully caught up. Only then does the router send it reads.
+
+New writes made on the primary during recovery are queued and applied afterwards, so nothing in between is missed.
+
+**Why nothing committed is lost:** a transaction is only committed after a majority of the group has agreed on it (certification). Anything the old primary confirmed as committed already existed on at least one other node. Only a transaction that was *in flight* at the moment of the kill is lost. That client got an error, not a commit, so the application knows to retry.
+
+### Test: a secondary falls behind and catches up
+
+```bash
+# helper: run SQL through the router (works whichever node is down)
+w() { docker run --rm --network mySqlClusterNetwork mysql:8.4 \
+      mysql -h mysql-router -P 6446 -uclusteradmin -padminpass -e "$1" 2>/dev/null; }
+
+w "CREATE DATABASE IF NOT EXISTS app; CREATE TABLE IF NOT EXISTS app.t(id INT AUTO_INCREMENT PRIMARY KEY, v INT)"
+
+# 1. kill a SECONDARY (check the primary first with: q 6446)
+docker kill mysql3
+
+# 2. write while it is down, so it falls behind
+for i in $(seq 1 200); do w "INSERT INTO app.t(v) VALUES ($i)"; done
+
+# 3. bring it back and watch it recover
+docker start mysql3
+watch -n 2 "docker exec mysql1 mysqlsh --js clusteradmin:adminpass@mysql1:3306 -e 'print(dba.getCluster().status())' 2>/dev/null | grep -E 'address|status\"|memberRole'"
+```
+
+`mysql3` shows `RECOVERING`, then `ONLINE`. On macOS without `watch`, rerun the `mysqlsh` command by hand, or install it with `brew install watch`.
+
+With monitoring running, the dashboard shows the same thing:
+- **Members ONLINE** stays at 2 while mysql3 is RECOVERING, then returns to 3.
+- **GR backlog** briefly shows mysql3's apply queue rising and draining.
+- **InnoDB row operations** shows mysql3 inserting the missed rows.
+
+### Test: all nodes hold the same data
+
+Run this once all three nodes are `ONLINE`.
+
+```bash
+# 1. same transactions everywhere: all three lines must be identical
+for n in mysql1 mysql2 mysql3; do
+  echo -n "$n: "; docker exec $n mysql -uroot -prootpass -N -e "SELECT @@GLOBAL.gtid_executed" 2>/dev/null | tr -d '\n'; echo
+done
+
+# 2. same data everywhere: same row count and checksum
+for n in mysql1 mysql2 mysql3; do
+  echo -n "$n: "; docker exec $n mysql -uroot -prootpass -N -e "SELECT COUNT(*) FROM app.t; CHECKSUM TABLE app.t" 2>/dev/null | tr '\n' ' '; echo
+done
+```
+
+| Check | Proves |
+|---|---|
+| Identical `gtid_executed` | Every node applied exactly the same set of transactions |
+| Identical row count and `CHECKSUM TABLE` | The actual table contents match |
+
+### Test: the killed primary catches up
+
+Repeat the first test, but kill the **primary** (`P=$(q 6446); docker kill "$P"`) while writes run. The writes pause for about 10–15 seconds during the election, then continue on the new primary. After `docker start "$P"`, the old primary rejoins as a SECONDARY, and the consistency checks above match on all three nodes.
+
+---
+
 ## Monitoring
 
 ### Start

@@ -216,6 +216,8 @@ backend routers_rw
 
 `routers_ro` is identical with port 6447.
 
+Lesson 6 measures what these checks add to a failover and changes them to `inter 1s fall 2 rise 1` ([6.3c](06-failover-tuning.md#63c-faster-haproxy-checks)).
+
 **Health checks are plain TCP.** They detect a dead router quickly. Whether a primary exists is the router's job, not HAProxy's.
 
 ### Stats and metrics

@@ -300,10 +300,48 @@ What this shows:
   members of the majority, so clients going through Router are safe; direct
   connections are not.
 - With `unreachable_majority_timeout = 0`, the minority member waits like
-  this **forever**. 6.4b makes it give up.
+  this **forever**.
 
-*Rejoin after the partition and 6.4b (cutting off the primary): coming next.*
+After `mjoin`, check that the node is back:
 
-## 6.5 Making the tuning permanent
+```bash
+members mysql1                      # mysql2 ONLINE again?
+docker compose up -d cluster-init   # if not: rejoins any member that is not ONLINE
+```
 
-*Coming next.*
+## Reset after the lesson
+
+The tuning in 6.2 and 6.3b was applied to the running cluster with `SET
+PERSIST`. It survives restarts but is lost with `docker compose down -v`.
+To go back to the defaults:
+
+```bash
+mjs "cluster.setOption('expelTimeout', 5)"
+mjs "cluster.setInstanceOption('mysql3:3306', 'memberWeight', 50)"
+mgrvars
+```
+
+The HAProxy change (6.3c) is in `haproxy/haproxy.cfg` and stays.
+
+## Still to come in this lesson
+
+- **Cutting off the primary**: the majority elects a new one while the old
+  primary keeps running alone; `unreachable_majority_timeout` and
+  `exitStateAction` decide what it does then.
+- **Auto-rejoin** after a partition (`autoRejoinTries`).
+- **Making the tuning permanent** in `scripts/init-cluster.js`, so it
+  survives `down -v`.
+
+## What you learned
+
+- Planned work: **switch over first** (`setPrimaryInstance`). It costs one
+  retryable `1290` error, against 6–25 s for a crash.
+- `memberWeight` decides the next primary; a returning node does not take
+  the role back on its own.
+- A crash costs: 5 s detection (fixed) + expel wait (`expelTimeout`, plus
+  the suspicion check interval) + router (≈0.2 s) + HAProxy checks.
+  Measured: 25 s with defaults, about 6 s tuned.
+- `mevents` builds the failover timeline from all logs; the routers are
+  never the slow part.
+- A partitioned minority blocks updates (no split brain) but still answers
+  reads with stale data; only Router keeps clients away from it.

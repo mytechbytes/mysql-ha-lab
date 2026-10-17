@@ -39,7 +39,8 @@ Each lesson explains its config files setting by setting, then tests the behavio
 | 2 | [Failover and recovery](docs/02-failover-and-recovery.md) | `01-cluster-setup` | Primary election, write downtime, quorum, catch-up, data consistency |
 | 3 | [Monitoring](docs/03-monitoring.md) | `02-monitoring` | mysqld-exporter, Prometheus, Grafana provisioning, dashboard |
 | 4 | [Multiple routers behind HAProxy](docs/04-multiple-routers.md) | `03-multi-router` | Router bootstrap, HAProxy health checks, router failure tests |
-| 5 | [Router monitoring](docs/04-multiple-routers.md#router-panels) | `04-router-monitoring` | HAProxy metrics in Prometheus, router panels in Grafana |
+| 4b | [Router monitoring](docs/04-multiple-routers.md#router-panels) | `04-router-monitoring` | HAProxy metrics in Prometheus, router panels in Grafana |
+| 5 | [Read consistency and read/write splitting](docs/05-consistency.md) | `05-consistency` | Stale reads, `group_replication_consistency` levels, router port 6450 |
 | | [Operations and troubleshooting](docs/operations.md) | | Commands, restarting, every known problem and its fix |
 
 ---
@@ -69,6 +70,7 @@ and once, create the app user and test table ([Lesson 0](docs/00-setup.md#create
 | URL | What |
 |---|---|
 | `localhost:6446` / `localhost:6447` | MySQL read/write / read-only, through HAProxy |
+| `localhost:6450` | MySQL read/write splitting, through HAProxy |
 | http://localhost:8404/stats | HAProxy: router health and sessions |
 | http://localhost:9090 | Prometheus |
 | http://localhost:3000 | Grafana → *MySQL HA → MySQL InnoDB Cluster* |

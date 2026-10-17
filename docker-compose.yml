@@ -87,6 +87,7 @@ services:
     ports:
       - "6446:6446"
       - "6447:6447"
+      - "6450:6450"
       - "8404:8404"
     networks: [cluster]
   monitoring-init:

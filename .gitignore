@@ -1,2 +1,5 @@
 .env
 .DS_Store
+client.cnf
+tx.log
+routers.txt

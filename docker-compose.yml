@@ -5,6 +5,19 @@ x-mysql: &mysql
     MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
     MYSQL_ROOT_HOST: "%"
   networks: [cluster]
+x-router: &router
+  image: container-registry.oracle.com/mysql/community-router:8.4
+  restart: unless-stopped
+  depends_on:
+    cluster-init:
+      condition: service_completed_successfully
+  environment:
+    MYSQL_HOST: mysql1
+    MYSQL_PORT: 3306
+    MYSQL_USER: ${CLUSTER_ADMIN}
+    MYSQL_PASSWORD: ${CLUSTER_ADMIN_PASSWORD}
+    MYSQL_INNODB_CLUSTER_MEMBERS: 3
+  networks: [cluster]
 x-exporter: &exporter
   image: prom/mysqld-exporter:v0.20.0
   profiles: [monitoring]
@@ -55,29 +68,33 @@ services:
     volumes:
       - ./scripts:/scripts:ro
     networks: [cluster]
-  router:
-    image: container-registry.oracle.com/mysql/community-router:8.4
+  router1:
+    <<: *router
+    container_name: mysql-router1
+    hostname: mysql-router1
+  router2:
+    <<: *router
+    container_name: mysql-router2
+    hostname: mysql-router2
+  router-lb:
+    image: haproxy:3.0
     container_name: mysql-router
+    hostname: mysql-router
     restart: unless-stopped
-    depends_on:
-      cluster-init:
-        condition: service_completed_successfully
-    environment:
-      MYSQL_HOST: mysql1
-      MYSQL_PORT: 3306
-      MYSQL_USER: ${CLUSTER_ADMIN}
-      MYSQL_PASSWORD: ${CLUSTER_ADMIN_PASSWORD}
-      MYSQL_INNODB_CLUSTER_MEMBERS: 3
+    depends_on: [router1, router2]
+    volumes:
+      - ./haproxy/haproxy.cfg:/usr/local/etc/haproxy/haproxy.cfg:ro
     ports:
       - "6446:6446"
       - "6447:6447"
+      - "8404:8404"
     networks: [cluster]
   monitoring-init:
     image: mysql:8.4
     container_name: monitoring-init
     profiles: [monitoring]
     restart: on-failure
-    depends_on: [router]
+    depends_on: [router-lb]
     entrypoint: ['bash', '/monitoring/init-exporter-user.sh']
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}

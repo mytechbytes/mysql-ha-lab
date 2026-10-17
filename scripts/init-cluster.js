@@ -51,4 +51,26 @@ for (const h of NODES) {
   }
 }
 
+// 4. Failover tuning (Lesson 6). Re-applied on every run, so a fresh cluster
+//    (docker compose down -v) gets the same behaviour. All values are persisted
+//    with SET PERSIST and survive restarts.
+const EXPEL_TIMEOUT        = 0;   // expel 0 s after a member is suspected (default 5)
+const UNREACHABLE_MAJORITY = 10;  // a cut-off minority leaves after 10 s instead of hanging (default 0 = never)
+const AUTO_REJOIN_TRIES    = 3;   // expelled members try to rejoin by themselves (default 3)
+
+try {
+  cluster.setOption('expelTimeout', EXPEL_TIMEOUT);
+  cluster.setOption('autoRejoinTries', AUTO_REJOIN_TRIES);
+  for (const h of NODES) {
+    shell.connect(`root:${ROOT_PW}@${h}:3306`);
+    shell.getSession().runSql(
+      `SET PERSIST group_replication_unreachable_majority_timeout = ${UNREACHABLE_MAJORITY}`);
+  }
+  shell.connect(`${ADM}:${ADM_PW}@mysql1:3306`);
+  println(`Tuning applied: expelTimeout=${EXPEL_TIMEOUT}, autoRejoinTries=${AUTO_REJOIN_TRIES}, ` +
+          `unreachable_majority_timeout=${UNREACHABLE_MAJORITY}`);
+} catch (e) {
+  println(`Tuning NOT applied (is every member ONLINE?): ${e.message}`);
+}
+
 print(JSON.stringify(cluster.status(), null, 2));

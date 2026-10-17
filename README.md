@@ -41,6 +41,7 @@ Each lesson explains its config files setting by setting, then tests the behavio
 | 4 | [Multiple routers behind HAProxy](docs/04-multiple-routers.md) | `03-multi-router` | Router bootstrap, HAProxy health checks, router failure tests |
 | 4b | [Router monitoring](docs/04-multiple-routers.md#router-panels) | `04-router-monitoring` | HAProxy metrics in Prometheus, router panels in Grafana |
 | 5 | [Read consistency and read/write splitting](docs/05-consistency.md) | `05-consistency` | Stale reads, `group_replication_consistency` levels, router port 6450 |
+| 6 | [Failover tuning and switchover](docs/06-failover-tuning.md) | `06-failover-tuning` | `setPrimaryInstance`, `memberWeight`, expel timeout, partitions, auto-rejoin |
 | | [Operations and troubleshooting](docs/operations.md) | | Commands, restarting, every known problem and its fix |
 
 ---

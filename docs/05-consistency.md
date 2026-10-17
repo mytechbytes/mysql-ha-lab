@@ -1,6 +1,6 @@
 # Lesson 5: Read consistency and read/write splitting
 
-[← Lesson 4: Multiple routers](04-multiple-routers.md) · [README](../README.md) · Next: [Operations →](operations.md)
+[← Lesson 4: Multiple routers](04-multiple-routers.md) · [README](../README.md) · Next: [Lesson 6: Failover tuning →](06-failover-tuning.md)
 
 Branch: `05-consistency`
 
@@ -195,4 +195,4 @@ statement fails with an error. Hours is far too long for an application, so:
 - `BEFORE` makes the read wait, `AFTER` makes the write wait; measured here at about 29 s each with a 30 s lag.
 - Choose the level per session, and always give clients a timeout.
 
-Next: [Operations →](operations.md)
+Next: [Lesson 6: Failover tuning →](06-failover-tuning.md)

@@ -80,7 +80,7 @@ Commands **without** `--profile monitoring` ignore these services (e.g. `docker 
 ### `monitoring/init-exporter-user.sh`
 
 ```bash
-until mysql -h mysql-router -P 6446 -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1" >/dev/null 2>&1; do
+until timeout 10 mysql --connect-timeout=5 -h mysql-router -P 6446 -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1" >/dev/null 2>&1; do
   echo "Waiting for router..."; sleep 3
 done
 mysql -h mysql-router -P 6446 -uroot -p"$MYSQL_ROOT_PASSWORD" <<SQL
@@ -94,6 +94,7 @@ SQL
 
 | Part | Why |
 |---|---|
+| `timeout 10 ... --connect-timeout=5` | Each attempt ends after at most 10s. Without it, an attempt made while the cluster was still starting can hang forever on a dead connection: the loop never retries and the exporters never start, even after the cluster is healthy. |
 | Wait loop on `mysql-router:6446` | Waits until there is a **primary** reachable through the router. Users must be created on the primary; Group Replication copies them to all nodes. The loop hides errors, see [stuck on "Waiting for router..."](#if-monitoring-init-is-stuck-on-waiting-for-router). |
 | `CREATE USER IF NOT EXISTS` | Safe to rerun |
 | `caching_sha2_password` | MySQL 8.4's default authentication plugin |

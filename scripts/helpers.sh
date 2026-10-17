@@ -87,6 +87,36 @@ mstatus() {
     mysqlsh --js --passwords-from-stdin "$CLUSTER_ADMIN@${1:-mysql1}:3306" -e "print(dba.getCluster().status())"
 }
 
+# set primary to specific node (default mysql1)
+mprimary() {
+  local target_node="${1:-mysql1}"
+  local connect_node="${2:-mysql2}"
+
+  echo "Promoting $target_node to primary..."
+  
+  echo "$CLUSTER_ADMIN_PASSWORD" | docker exec -i "$connect_node" \
+    mysqlsh --js --passwords-from-stdin "$CLUSTER_ADMIN@$connect_node:3306" \
+    -e "dba.getCluster().setPrimaryInstance('$target_node:3306'); print(dba.getCluster().status())"
+}
+
+# Make a SECONDARY fall behind: hold a read lock on app.t so its replication applier waits.
+# usage: mstall <node> [seconds]      e.g.  mstall mysql3 30 &
+mstall() {
+  local node="${1:?usage: mstall <node> [seconds]}" secs="${2:-20}"
+  if [ "$(q 6446 2>/dev/null)" = "$node" ]; then
+    echo "mstall: $node is the PRIMARY; locking it blocks client writes, not replication. Use a secondary." >&2
+    return 1
+  fi
+  echo "$(date +%T) $node: app.t locked for ${secs}s, its applier falls behind"
+  MH_TIMEOUT=$(( secs + 10 )) mroot -h "$node" -P 3306 \
+    -e "LOCK TABLES app.t READ; SELECT SLEEP($secs); UNLOCK TABLES" >/dev/null
+  echo "$(date +%T) $node: released, catching up"
+}
+
+# run SQL through read/write splitting (router port 6450, via HAProxy): prints the result only
+# usage: r "SQL"      e.g.  r "SELECT @@hostname"
+r() { m -P 6450 -N -e "${1:?usage: r \"SQL\"}"; }
+
 # kill helper containers that are still running (stuck calls)
 mclean() {
   local n
@@ -105,6 +135,9 @@ tx N             one test insert, prints OK/FAIL + node       tx 1
 txloop           endless tx loop, appended to tx.log          txloop
 members [node]   group membership seen by a node              members mysql2
 mstatus [node]   cluster status from MySQL Shell              mstatus mysql2
+mprimary [to] [via] switch primary to <to> (default mysql1)   mprimary mysql2
+r "SQL"          SQL via read/write splitting (6450)          r "SELECT @@hostname"
+mstall <node> [s] lock app.t on a secondary so it lags        mstall mysql3 30 &
 mclean           kill stuck helper containers                 mclean
 Timeout per SQL call: MH_TIMEOUT (default 15s)
 HELP

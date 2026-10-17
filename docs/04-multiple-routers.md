@@ -1,6 +1,6 @@
 # Lesson 4: Multiple MySQL Routers behind HAProxy
 
-[← Lesson 3: Monitoring](03-monitoring.md) · [README](../README.md) · Next: [Operations →](operations.md)
+[← Lesson 3: Monitoring](03-monitoring.md) · [README](../README.md) · Next: [Lesson 5: Consistency →](05-consistency.md)
 
 **Branch:** `03-multi-router`
 
@@ -190,6 +190,8 @@ frontend mysql_ro
 | `mysql_rw` | 6446 | `routers_rw`, port 6446 on each router → primary |
 | `mysql_ro` | 6447 | `routers_ro`, port 6447 on each router → secondaries |
 
+Lesson 5 adds a third MySQL frontend, `mysql_rwsplit` on 6450. See [HAProxy ports after Lesson 5](05-consistency.md#haproxy-ports-after-this-lesson) for the full table.
+
 ### Backends: the routers
 
 ```haproxy
@@ -330,4 +332,4 @@ The dashboard's **MySQL Routers (via HAProxy)** section:
 
 During test 2 you see *Healthy routers* drop to 1 (orange), router1's up/down line drop to 0, and all sessions move to router2.
 
-Next: [Operations →](operations.md)
+Next: [Lesson 5: Consistency →](05-consistency.md)

@@ -103,7 +103,7 @@ After `down -v`, redo [Lesson 0](00-setup.md#create-the-app-user-and-the-test-ta
 
 | Symptom | Cause / fix |
 |---|---|
-| `monitoring-init` stuck on "Waiting for router..." | [Lesson 3: debugging steps](03-monitoring.md#if-monitoring-init-is-stuck-on-waiting-for-router) |
+| `monitoring-init` stuck on "Waiting for router..." | [Lesson 3: debugging steps](03-monitoring.md#if-monitoring-init-is-stuck-on-waiting-for-router). If the whole chain works (`mroot -e "SELECT 1"` succeeds) but it keeps waiting, an attempt is hanging: `docker restart monitoring-init`. |
 | Exporter `Restarting (1)` | Bad argument. `command:` must be a YAML list; no shell expands `$VARS` in the container. |
 | `mysql_up 0` | Exporter can't log in. Variable must be `MYSQLD_EXPORTER_PASSWORD` (with **D**), and `monitoring-init` must have finished. |
 | One node missing in Grafana, another doubled | Two exporters point at the same node. Check `--mysqld.address` and `mysql_global_variables_server_id`. |

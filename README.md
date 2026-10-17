@@ -39,6 +39,7 @@ Each lesson explains its config files setting by setting, then tests the behavio
 | 2 | [Failover and recovery](docs/02-failover-and-recovery.md) | `01-cluster-setup` | Primary election, write downtime, quorum, catch-up, data consistency |
 | 3 | [Monitoring](docs/03-monitoring.md) | `02-monitoring` | mysqld-exporter, Prometheus, Grafana provisioning, dashboard |
 | 4 | [Multiple routers behind HAProxy](docs/04-multiple-routers.md) | `03-multi-router` | Router bootstrap, HAProxy health checks, router failure tests |
+| 5 | [Router monitoring](docs/04-multiple-routers.md#router-panels) | `04-router-monitoring` | HAProxy metrics in Prometheus, router panels in Grafana |
 | | [Operations and troubleshooting](docs/operations.md) | | Commands, restarting, every known problem and its fix |
 
 ---

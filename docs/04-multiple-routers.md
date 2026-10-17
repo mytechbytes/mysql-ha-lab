@@ -37,8 +37,6 @@ A single MySQL Router is a single point of failure: the database survives losing
 ```
 docker-compose.yml       # x-router anchor, router1, router2, router-lb
 haproxy/haproxy.cfg      # load balancer config
-monitoring/prometheus.yml  # + haproxy scrape job
-monitoring/grafana/dashboards/mysql-cluster.json  # + routers section
 .editorconfig            # guarantees the final newline HAProxy needs
 ```
 
@@ -260,7 +258,7 @@ After editing: `docker compose restart router-lb`.
 
 ## Router tests
 
-Uses the helpers from [Lesson 0](00-setup.md) (`source scripts/helpers.sh`). Keep http://localhost:8404/stats or the Grafana dashboard open.
+Uses the helpers from [Lesson 0](00-setup.md) (`source scripts/helpers.sh`). Keep http://localhost:8404/stats open.
 
 **1. Connections are spread across both routers**
 
@@ -301,31 +299,5 @@ docker start mysql-router1 mysql-router2    # back after the health checks pass 
 ```
 
 > **HAProxy is now the single point of failure.** It's simpler and stateless, but in production run two HAProxy instances with a shared virtual IP (keepalived), use a cloud load balancer, or use the sidecar pattern.
-
----
-
-## Router panels
-
-`monitoring/prometheus.yml` scrapes HAProxy:
-
-```yaml
-  - job_name: haproxy
-    static_configs:
-      - targets: ["mysql-router:8404"]
-```
-
-The dashboard's **MySQL Routers (via HAProxy)** section:
-
-| Panel | Metric |
-|---|---|
-| Healthy routers R/W, R/O | `haproxy_backend_active_servers{proxy="routers_rw"}` (and `routers_ro`) |
-| Client sessions via load balancer | `haproxy_frontend_current_sessions{proxy=~"mysql_rw\|mysql_ro"}` |
-| Health-check failures (15m) | `increase(haproxy_server_check_failures_total[15m])` |
-| Router up/down | `haproxy_server_status{proxy="routers_rw", state="UP"}` |
-| Open sessions per router | `haproxy_server_current_sessions` |
-| New connections/sec per router | `rate(haproxy_server_sessions_total[...])` |
-| Connection errors & check failures | `haproxy_server_connection_errors_total`, `haproxy_server_check_failures_total` |
-
-During test 2 you see *Healthy routers* drop to 1 (orange), router1's up/down line drop to 0, and all sessions move to router2.
 
 Next: [Operations →](operations.md)

@@ -4,13 +4,12 @@
 
 **Branch:** `02-monitoring`
 
-Watch the cluster live: which node is primary, members leaving and returning, writes moving to a new primary, replication backlog, and (from Lesson 4) router health.
+Watch the cluster live: which node is primary, members leaving and returning, writes moving to a new primary, and replication backlog.
 
 ```
  mysql1 ◄── exporter-mysql1 ──┐
- mysql2 ◄── exporter-mysql2 ──┤
- mysql3 ◄── exporter-mysql3 ──┼──► Prometheus :9090 ──► Grafana :3000
- HAProxy :8404/metrics ───────┘      (scrape 5s)        (dashboard)
+ mysql2 ◄── exporter-mysql2 ──┼──► Prometheus :9090 ──► Grafana :3000
+ mysql3 ◄── exporter-mysql3 ──┘      (scrape 5s)        (dashboard)
 ```
 
 | Component | Role |
@@ -183,10 +182,6 @@ scrape_configs:
   - job_name: prometheus
     static_configs:
       - targets: ["localhost:9090"]
-
-  - job_name: haproxy
-    static_configs:
-      - targets: ["mysql-router:8404"]
 ```
 
 | Setting | Meaning |
@@ -196,7 +191,6 @@ scrape_configs:
 | `job_name` | Added to every series as label `job` |
 | `targets` | `host:port` to scrape; path defaults to `/metrics` |
 | `labels: { node: ... }` | Extra label, so legends say `mysql1` instead of `exporter-mysql1:9104` |
-| `job_name: haproxy` | HAProxy's built-in exporter (Lesson 4) |
 
 ---
 
@@ -286,7 +280,7 @@ docker logs --tail 100 -f monitoring-init     # expect: "Exporter user 'exporter
 | URL | What |
 |---|---|
 | http://localhost:3000 | Grafana → **Dashboards → MySQL HA → MySQL InnoDB Cluster** (login `admin` / `GRAFANA_ADMIN_PASSWORD`) |
-| http://localhost:9090 | Prometheus → *Status → Target health*: 3 exporters, HAProxy, Prometheus, all UP |
+| http://localhost:9090 | Prometheus → *Status → Target health*: 3 exporters and Prometheus, all UP |
 
 ```bash
 # each exporter can log in (expect: mysql_up 1, three times)
@@ -344,7 +338,6 @@ docker restart mysql-router1 mysql-router2
 | Section | Panels |
 |---|---|
 | **Cluster overview** | Nodes reachable · Members ONLINE · Current primary · Statements/sec |
-| **MySQL Routers (via HAProxy)** | Healthy routers R/W and R/O · Client sessions via load balancer · Health-check failures (15m) · Router up/down · Open sessions per router · New connections/sec per router · Connection errors & check failures *(Lesson 4)* |
 | **MySQL cluster** | Node up/down · Statements by node · CRUD by type · Client writes by node · InnoDB row operations · GR backlog · Proposed vs applied transactions · Conflicts & rollbacks · Connections · Network · Group members table |
 
 Hover the ⓘ next to a panel title for an explanation.
@@ -358,7 +351,6 @@ Hover the ⓘ next to a panel title for an explanation.
 | Conflicts & rollbacks | `mysql_perf_schema_conflicts_detected_total`, `..._transactions_local_rollback_total` |
 | Statements, CRUD, writes per node | `mysql_global_status_commands_total` |
 | InnoDB rows | `mysql_global_status_innodb_row_ops_total` |
-| Router panels | `haproxy_*`, see [Lesson 4](04-multiple-routers.md#router-panels) |
 
 To change the dashboard: edit it in Grafana, then *Export → Export as JSON* and overwrite `monitoring/grafana/dashboards/mysql-cluster.json`. UI-only changes are lost on `down -v`.
 

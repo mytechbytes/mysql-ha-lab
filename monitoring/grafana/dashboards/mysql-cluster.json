@@ -7,7 +7,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 2,
   "editable": true,
   "refresh": "5s",
   "time": {
@@ -15,6 +15,19 @@
     "to": "now"
   },
   "panels": [
+    {
+      "id": 26,
+      "type": "row",
+      "title": "Cluster overview",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
     {
       "id": 1,
       "title": "Nodes reachable",
@@ -25,7 +38,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 0,
+        "y": 1,
         "w": 6,
         "h": 4
       },
@@ -87,7 +100,7 @@
       },
       "gridPos": {
         "x": 6,
-        "y": 0,
+        "y": 1,
         "w": 6,
         "h": 4
       },
@@ -149,7 +162,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 0,
+        "y": 1,
         "w": 6,
         "h": 4
       },
@@ -205,7 +218,7 @@
       },
       "gridPos": {
         "x": 18,
-        "y": 0,
+        "y": 1,
         "w": 6,
         "h": 4
       },
@@ -250,6 +263,488 @@
       }
     },
     {
+      "id": 16,
+      "type": "row",
+      "title": "MySQL Routers (via HAProxy)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 17,
+      "title": "Healthy routers (R/W 6446)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "max(haproxy_backend_active_servers{proxy=\"routers_rw\"})"
+        }
+      ],
+      "description": "Routers HAProxy currently sends write traffic to. 1 of 2 still works; 0 means the app cannot reach the database.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "green",
+                "value": 2
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 18,
+      "title": "Healthy routers (R/O 6447)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 6,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "max(haproxy_backend_active_servers{proxy=\"routers_ro\"})"
+        }
+      ],
+      "description": "Routers HAProxy currently sends read-only traffic to.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              },
+              {
+                "color": "green",
+                "value": 2
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 19,
+      "title": "Client sessions via load balancer",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 6,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(haproxy_frontend_current_sessions{proxy=~\"mysql_rw|mysql_ro\"})"
+        }
+      ],
+      "description": "Open client connections on ports 6446 + 6447.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 20,
+      "title": "Router health-check failures (15m)",
+      "type": "stat",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 6,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "sum(increase(haproxy_server_check_failures_total{proxy=~\"routers_.*\"}[15m]))"
+        }
+      ],
+      "description": "Failed HAProxy health checks against the routers in the last 15 minutes.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "value",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center"
+      }
+    },
+    {
+      "id": 21,
+      "title": "Router up / down",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 10,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "max by (server) (haproxy_server_status{proxy=\"routers_rw\", state=\"UP\"})",
+          "legendFormat": "{{server}}"
+        }
+      ],
+      "description": "1 = HAProxy health check passes, 0 = router marked DOWN (2 failed checks, ~4s).",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          },
+          "min": 0,
+          "max": 1,
+          "decimals": 0
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 22,
+      "title": "Open sessions per router",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 10,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (server, proxy) (haproxy_server_current_sessions{proxy=~\"routers_.*\"})",
+          "legendFormat": "{{server}} {{proxy}}"
+        }
+      ],
+      "description": "Connections currently passing through each router. With leastconn they stay roughly balanced.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 23,
+      "title": "New connections / sec per router",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (server, proxy) (rate(haproxy_server_sessions_total{proxy=~\"routers_.*\"}[$__rate_interval]))",
+          "legendFormat": "{{server}} {{proxy}}"
+        }
+      ],
+      "description": "When a router dies, its share moves to the other one.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 24,
+      "title": "Router connection errors / sec",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 18,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (server) (rate(haproxy_server_connection_errors_total{proxy=~\"routers_.*\"}[$__rate_interval]))",
+          "legendFormat": "{{server}} connect errors"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "B",
+          "expr": "sum by (server) (rate(haproxy_server_check_failures_total{proxy=~\"routers_.*\"}[$__rate_interval]))",
+          "legendFormat": "{{server}} check failures"
+        }
+      ],
+      "description": "Spikes when a router is killed or restarting.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 25,
+      "type": "row",
+      "title": "MySQL cluster",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
       "id": 5,
       "title": "Node up / down",
       "type": "timeseries",
@@ -259,7 +754,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 4,
+        "y": 27,
         "w": 12,
         "h": 8
       },
@@ -311,7 +806,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 4,
+        "y": 27,
         "w": 12,
         "h": 8
       },
@@ -363,7 +858,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 12,
+        "y": 35,
         "w": 12,
         "h": 8
       },
@@ -415,7 +910,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 12,
+        "y": 35,
         "w": 12,
         "h": 8
       },
@@ -467,7 +962,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 20,
+        "y": 43,
         "w": 12,
         "h": 8
       },
@@ -519,7 +1014,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 20,
+        "y": 43,
         "w": 12,
         "h": 8
       },
@@ -580,7 +1075,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 28,
+        "y": 51,
         "w": 12,
         "h": 8
       },
@@ -641,7 +1136,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 28,
+        "y": 51,
         "w": 12,
         "h": 8
       },
@@ -702,7 +1197,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 36,
+        "y": 59,
         "w": 12,
         "h": 8
       },
@@ -763,7 +1258,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 36,
+        "y": 59,
         "w": 12,
         "h": 8
       },
@@ -824,7 +1319,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 44,
+        "y": 67,
         "w": 24,
         "h": 6
       },

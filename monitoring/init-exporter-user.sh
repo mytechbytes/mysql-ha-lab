@@ -2,7 +2,7 @@
 
 set -euo pipefail
 # It will wait for the router to be available before proceeding.
-until mysql -h mysql-router -P 6446 -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1" >/dev/null 2>&1; do
+until timeout 10 mysql --connect-timeout=5 -h mysql-router -P 6446 -uroot -p"$MYSQL_ROOT_PASSWORD" -e "SELECT 1" >/dev/null 2>&1; do
   echo "Waiting for router..."; sleep 3
 done
 # Create the exporter user, with a maximum of 5 connections to prevent overloading the server, with the necessary privileges for monitoring.

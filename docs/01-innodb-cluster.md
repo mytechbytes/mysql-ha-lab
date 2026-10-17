@@ -251,6 +251,8 @@ for (const h of NODES) {
 
 Missing nodes are added with **clone** (a full copy of an existing member); members that exist but aren't ONLINE are rejoined.
 
+**Step 4: failover tuning** (added in Lesson 6): sets `expelTimeout`, `autoRejoinTries` and `unreachable_majority_timeout` on every run. See [6.5](06-failover-tuning.md#65-making-the-tuning-permanent).
+
 | Run | Result |
 |---|---|
 | `down -v` then `up -d` | Cluster built from scratch |

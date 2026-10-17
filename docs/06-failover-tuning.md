@@ -14,8 +14,9 @@ change them.
 | File | Change |
 |---|---|
 | `scripts/helpers.sh` | `mprimary` (switchover), `mjs` (any AdminAPI command), `mgrvars` (failover settings per node), `mevents` (failover timeline from all logs), `mnode` (SQL inside a node's container), `mcut` / `mjoin` (network partition); `docker exec` calls set `LC_ALL=C.UTF-8` |
+| `scripts/init-cluster.js` | Applies `expelTimeout`, `autoRejoinTries` and `unreachable_majority_timeout` on every run ([6.5](#65-making-the-tuning-permanent)) |
 | `haproxy/haproxy.cfg` | Health checks `inter 1s fall 2 rise 1` instead of `inter 2s fall 2 rise 2` ([6.3c](#63c-faster-haproxy-checks)) |
-| Cluster options (runtime, `SET PERSIST`) | `expelTimeout 0` ([6.3b](#63b-expel-immediately-expeltimeout-0)), `memberWeight` 80 on mysql3 ([6.2](#62-choosing-the-next-primary-memberweight)) |
+| Runtime only (`mjs`) | `memberWeight` 80 on mysql3 during [6.2](#62-choosing-the-next-primary-memberweight); reset at the end |
 
 ```bash
 source scripts/helpers.sh
@@ -302,35 +303,175 @@ What this shows:
 - With `unreachable_majority_timeout = 0`, the minority member waits like
   this **forever**.
 
-After `mjoin`, check that the node is back:
+### 6.4b Cut off the primary
+
+The split-brain case: the old primary keeps running, alone, while the
+majority elects a new one.
 
 ```bash
-members mysql1                      # mysql2 ONLINE again?
-docker compose up -d cluster-init   # if not: rejoins any member that is not ONLINE
+# terminal 1: txloop     terminal 2:
+mcut mysql1
+sleep 10; members mysql2
+mnode mysql1 "SELECT MEMBER_HOST, MEMBER_STATE, MEMBER_ROLE FROM performance_schema.replication_group_members"
+MH_TIMEOUT=10 mnode mysql1 "INSERT INTO app.t (v) VALUES (-1)"; echo "exit=$?"
+mnode mysql1 "SELECT @@super_read_only, @@offline_mode"
+mjoin mysql1
+sleep 180; members mysql2           # reconnecting can take minutes, see below
+w "SELECT COUNT(*) FROM app.t WHERE v=-1"
+docker logs -t --since 10m mysql1 2>&1 | grep -iE 'expel|rejoin|unreachable|majority|rollback|read only'
+```
+
+Two primaries, seen from each side:
+
+```
+members mysql2 (majority)              mnode mysql1 (minority)
+mysql2  ONLINE  SECONDARY              mysql1  ONLINE       PRIMARY
+mysql3  ONLINE  PRIMARY                mysql2  UNREACHABLE  SECONDARY
+                                       mysql3  UNREACHABLE  SECONDARY
+```
+
+| UTC | Event | Where |
+|---|---|---|
+| 13:55:57 | `mcut mysql1` | |
+| 13:55:58.2 | Routers stop accepting on 6446 at once (they can no longer reach the primary) | routers |
+| 13:56:03.7 | mysql1: "not able to reach a **majority** … will now **block all updates**" | mysql1 |
+| 13:56:04.7 | mysql1 expelled, **mysql3 elected** | mysql2, mysql3 |
+| 13:56:05.4 / 05.7 | Routers accept again, HAProxy UP | routers, HAProxy |
+| 13:56:18 | `mjoin mysql1` | |
+| **13:58:23** | mysql1: "**resumed contact** with a majority" (2 min after the network came back) | mysql1 |
+| 13:58:46.7 | mysql1: "**expelled** … status to **ERROR**", "transactions … will now **rollback**", "set into **read only** mode" | mysql1 |
+| 13:58:46.7 | Session 7600 fails in `before_commit`: the test `INSERT (-1)` | mysql1 |
+| 13:58:46.7 | "Started **auto-rejoin** procedure attempt 1 of 3" | mysql1 |
+| 13:58:51.2 | "Member was able to join the group": mysql1 is ONLINE SECONDARY | mysql1 |
+
+Results:
+
+| Question | Answer |
+|---|---|
+| Writes through Router | Down **7 s** (19:25:58 → 19:26:05 IST), then on mysql3 |
+| Does the cut-off primary know it lost? | **No.** It still calls itself ONLINE PRIMARY, with `super_read_only 0` and `offline_mode 0` |
+| A write sent straight to it | **Hangs**, no error (`exit=124` from the client timeout). The server kept that transaction waiting for **2.5 minutes**, until it learned it was expelled and rolled it back |
+| Did that write survive? | **No**: `COUNT(*) WHERE v=-1` is 0. No split brain |
+| Recovery | Automatic: resumed contact → expelled → rollback → auto-rejoin, 5 s from contact to ONLINE |
+
+Lessons:
+
+- **Group Replication never lets two primaries commit.** The minority blocks.
+  But "blocks" means *hangs*: an application connected directly to the old
+  primary freezes instead of failing over. Connect through Router, and give
+  every client a timeout.
+- **Reconnecting is slow.** After the network came back it took 17 s for
+  mysql2 (6.4a) and 2 min for mysql1; the longer a member is cut off, the
+  longer it seems to take. Do not conclude "rejoin failed" too early.
+- With `unreachable_majority_timeout = 0` the zombie primary waits like this
+  for as long as the partition lasts. 6.4c makes it give up.
+
+If a member does not come back on its own:
+
+```bash
+MH_TIMEOUT=60 mnode mysql1 "STOP GROUP_REPLICATION; START GROUP_REPLICATION"
+# or
+docker compose up -d cluster-init   # rejoins any member that is not ONLINE
+```
+
+### 6.4c Make a cut-off member give up
+
+`group_replication_unreachable_majority_timeout` is not an AdminAPI option;
+set it with SQL on every member:
+
+```bash
+for n in mysql1 mysql2 mysql3; do
+  mroot -h $n -P 3306 -e "SET PERSIST group_replication_unreachable_majority_timeout = 10"
+done
+mgrvars                                         # unreachable_majority 10
+
+# terminal 1: txloop     terminal 2:
+mcut mysql1
+sleep 20
+mnode mysql1 "SELECT MEMBER_HOST, MEMBER_STATE, MEMBER_ROLE FROM performance_schema.replication_group_members"
+mnode mysql1 "SELECT @@super_read_only, @@offline_mode"
+MH_TIMEOUT=10 mnode mysql1 "INSERT INTO app.t (v) VALUES (-2)"; echo "exit=$?"
+mjoin mysql1
+sleep 180; members mysql2
+docker logs -t --since 10m mysql1 2>&1 | grep -iE 'expel|rejoin|unreachable|majority|rollback|read only|offline'
+```
+
+| UTC | Event on mysql1 |
+|---|---|
+| 14:06:34 | `mcut mysql1` |
+| 14:06:39.3 | "not able to reach a majority … will now block all updates … **for the next 10 seconds**. Unless contact with the majority is restored, after this time the member will error out and leave the group" |
+| 14:06:49.3 | "could not reach a majority … for more than 10 seconds. The member will now **leave the group**", "set into **read only** mode" |
+| 14:06:54 | `mjoin mysql1` |
+| 14:06:58.1 | "Started **auto-rejoin** procedure attempt 1 of 3" |
+| 14:07:03.4 | "attempt 1 of 3 finished. Member was able to join the group" |
+
+| | 6.4b (`unreachable_majority 0`) | 6.4c (`unreachable_majority 10`) |
+|---|---|---|
+| Old primary after the cut | ONLINE PRIMARY, forever | **ERROR** after 10 s |
+| `super_read_only` / `offline_mode` | 0 / 0 | **1** / 0 |
+| Direct write to it | **Hangs**; held on the server for 2.5 min | **Fails at once**: `ERROR 1290 … --super-read-only` |
+| Back in the group after the network returns | ~2.5 min | **9 s** (auto-rejoin) |
+
+`offline_mode` stays 0 although `exitStateAction` is `OFFLINE_MODE`. Our
+reading: while auto-rejoin attempts remain, the member is only made
+read-only; the exit state action applies once all `autoRejoinTries`
+attempts have failed.
+
+**Recommendation:** set `unreachable_majority_timeout`. A member that cannot
+reach a majority is useless as a primary; failing fast is better for every
+client than hanging.
+
+## 6.5 Making the tuning permanent
+
+Everything set with `mjs` or `SET PERSIST` lives in the data volumes
+(`mysqld-auto.cnf`) and is lost with `docker compose down -v`. So
+`scripts/init-cluster.js` now applies the tuning at the end of every run:
+
+```javascript
+// 4. Failover tuning (Lesson 6)
+const EXPEL_TIMEOUT        = 0;   // expel 0 s after a member is suspected (default 5)
+const UNREACHABLE_MAJORITY = 10;  // a cut-off minority leaves after 10 s (default 0 = never)
+const AUTO_REJOIN_TRIES    = 3;   // expelled members try to rejoin by themselves (default 3)
+
+cluster.setOption('expelTimeout', EXPEL_TIMEOUT);
+cluster.setOption('autoRejoinTries', AUTO_REJOIN_TRIES);
+// unreachable_majority_timeout is not an AdminAPI option: SQL on each node
+SET PERSIST group_replication_unreachable_majority_timeout = 10
+```
+
+| Setting | Lab value | Why |
+|---|---|---|
+| `expelTimeout` | 0 | 25 s → 9 s failover (6.3b). Raise it on a less stable network |
+| `unreachable_majority_timeout` | 10 | A cut-off primary fails fast instead of hanging (6.4c) |
+| `autoRejoinTries` | 3 | Default; members come back after a partition by themselves |
+| `memberWeight` | not set (50) | Equal nodes in this lab; set it per instance when one should be preferred |
+
+It is wrapped in `try/catch`: if a member is not ONLINE, the cluster still
+comes up and the log says `Tuning NOT applied`. Run `cluster-init` again
+once all members are back.
+
+Test without losing data: undo the settings by hand, then let `cluster-init`
+put them back:
+
+```bash
+mjs "cluster.setOption('expelTimeout', 5)"
+for n in mysql1 mysql2 mysql3; do
+  mroot -h $n -P 3306 -e "SET PERSIST group_replication_unreachable_majority_timeout = 0"
+done
+mgrvars                                   # expel 5, unreachable_majority 0
+docker compose up -d cluster-init
+docker logs --tail 100 -f cluster-init    # "Tuning applied: ..."
+mgrvars                                   # expel 0, unreachable_majority 10
 ```
 
 ## Reset after the lesson
 
-The tuning in 6.2 and 6.3b was applied to the running cluster with `SET
-PERSIST`. It survives restarts but is lost with `docker compose down -v`.
-To go back to the defaults:
+The weight from 6.2 is not part of the script:
 
 ```bash
-mjs "cluster.setOption('expelTimeout', 5)"
 mjs "cluster.setInstanceOption('mysql3:3306', 'memberWeight', 50)"
 mgrvars
 ```
-
-The HAProxy change (6.3c) is in `haproxy/haproxy.cfg` and stays.
-
-## Still to come in this lesson
-
-- **Cutting off the primary**: the majority elects a new one while the old
-  primary keeps running alone; `unreachable_majority_timeout` and
-  `exitStateAction` decide what it does then.
-- **Auto-rejoin** after a partition (`autoRejoinTries`).
-- **Making the tuning permanent** in `scripts/init-cluster.js`, so it
-  survives `down -v`.
 
 ## What you learned
 
@@ -345,3 +486,7 @@ The HAProxy change (6.3c) is in `haproxy/haproxy.cfg` and stays.
   never the slow part.
 - A partitioned minority blocks updates (no split brain) but still answers
   reads with stale data; only Router keeps clients away from it.
+- A cut-off primary does not know it lost: direct writes to it hang until
+  the partition heals. `unreachable_majority_timeout` makes it leave after N
+  seconds and refuse writes, and it rejoins in seconds afterwards.
+- Runtime tuning is lost with `down -v`; `init-cluster.js` re-applies it.

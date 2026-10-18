@@ -1,6 +1,6 @@
 # Lesson 6: Failover tuning and switchover
 
-[← Lesson 5: Consistency](05-consistency.md) · [README](../README.md) · Next: [Operations →](operations.md)
+[← Lesson 5: Consistency](05-consistency.md) · [README](../README.md) · Next: [Lesson 10: Spring Boot app →](10-spring-app.md)
 
 Branch: `06-failover-tuning`
 

@@ -1,0 +1,11 @@
+target/
+.idea/
+*.iml
+.mvn/
+mvnw
+mvnw.cmd
+.sdkmanrc
+HELP.md
+.DS_Store
+*.log
+.vscode/

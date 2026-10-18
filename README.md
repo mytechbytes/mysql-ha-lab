@@ -42,6 +42,7 @@ Each lesson explains its config files setting by setting, then tests the behavio
 | 4b | [Router monitoring](docs/04-multiple-routers.md#router-panels) | `04-router-monitoring` | HAProxy metrics in Prometheus, router panels in Grafana |
 | 5 | [Read consistency and read/write splitting](docs/05-consistency.md) | `05-consistency` | Stale reads, `group_replication_consistency` levels, router port 6450 |
 | 6 | [Failover tuning and switchover](docs/06-failover-tuning.md) | `06-failover-tuning` | `setPrimaryInstance`, `memberWeight`, expel timeout, partitions, auto-rejoin |
+| 10 | [Spring Boot application](docs/10-spring-app.md) | `10-spring-app` | Read/write pools, retry, idempotent writes, app-side outage tracking |
 | | [Operations and troubleshooting](docs/operations.md) | | Commands, restarting, every known problem and its fix |
 
 ---
@@ -74,7 +75,7 @@ and once, create the app user and test table ([Lesson 0](docs/00-setup.md#create
 | `localhost:6450` | MySQL read/write splitting, through HAProxy |
 | http://localhost:8404/stats | HAProxy: router health and sessions |
 | http://localhost:9090 | Prometheus |
-| http://localhost:3000 | Grafana → *MySQL HA → MySQL InnoDB Cluster* |
+| http://localhost:3000 | Grafana → *MySQL HA* → **1 · Overview** (home), then 2 · Cluster, 3 · Routers, 4 · Applications, 5 · Failover, 6 · Pools |
 
 Stop: `docker compose --profile monitoring stop`. Wipe: `docker compose --profile monitoring down -v`. More in [Operations](docs/operations.md).
 
@@ -105,7 +106,7 @@ Stop: `docker compose --profile monitoring stop`. Wipe: `docker compose --profil
     ├── prometheus.yml        # scrape config                         → Lesson 3
     └── grafana/
         ├── provisioning/     # datasource + dashboard provider       → Lesson 3
-        └── dashboards/       # mysql-cluster.json                    → Lesson 3
+        └── dashboards/       # 1-overview … 6-connection-pools.json → Lessons 3, 4, 10
 ```
 
 ---

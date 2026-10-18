@@ -38,7 +38,7 @@ A single MySQL Router is a single point of failure: the database survives losing
 docker-compose.yml       # x-router anchor, router1, router2, router-lb
 haproxy/haproxy.cfg      # load balancer config
 monitoring/prometheus.yml  # + haproxy scrape job
-monitoring/grafana/dashboards/mysql-cluster.json  # + routers section
+monitoring/grafana/dashboards/  # routers panels (now in 3-routers-haproxy.json and 1-overview.json)
 .editorconfig            # guarantees the final newline HAProxy needs
 ```
 

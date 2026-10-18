@@ -19,3 +19,20 @@ scrape_configs:
   - job_name: haproxy
     static_configs:
       - targets: ["mysql-router:8404"]
+
+  # Lab apps (Lesson 10). Each app has a Docker and a dev-mode target; whichever is not running shows DOWN in Status -> Targets.
+  - job_name: labapp-springboot
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["labapp-springboot:8080"]        # in Docker (--profile app-springboot)
+        labels: { mode: docker }
+      - targets: ["host.docker.internal:8081"]     # dev mode on the Mac (mvn spring-boot:run -Dspring-boot.run.profiles=dev)
+        labels: { mode: dev }
+
+  - job_name: labapp-go
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["labapp-go:8080"]                # in Docker (--profile app-go)
+        labels: { mode: docker }
+      - targets: ["host.docker.internal:8091"]     # dev mode on the Mac
+        labels: { mode: dev }

@@ -12,9 +12,12 @@ import java.util.Deque;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -69,6 +72,15 @@ public class DbProbe {
     private final State reader;
     private final Deque<Outage> history = new ArrayDeque<>();
 
+    /** Probing starts only after startup (SchemaInit has created the heartbeat table). */
+    private final AtomicBoolean ready = new AtomicBoolean(false);
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void onReady() {
+        ready.set(true);
+        log.info("probe started");
+    }
+
     public DbProbe(JdbcClient jdbc, PlatformTransactionManager tm, MeterRegistry registry) {
         this.jdbc = jdbc;
         this.probeWrite = new TransactionTemplate(tm);
@@ -82,6 +94,7 @@ public class DbProbe {
 
     @Scheduled(fixedDelayString = "${app.probe.interval-ms:1000}")
     public void probeWriter() {
+        if (!ready.get()) return;
         check(writer, () -> probeWrite.execute(s -> jdbc.sql("""
                 INSERT INTO heartbeat (id, beat_at, node) VALUES (1, NOW(3), @@hostname) AS n
                 ON DUPLICATE KEY UPDATE beat_at = n.beat_at, node = n.node""").update()));
@@ -89,6 +102,7 @@ public class DbProbe {
 
     @Scheduled(fixedDelayString = "${app.probe.interval-ms:1000}")
     public void probeReader() {
+        if (!ready.get()) return;
         check(reader, () -> probeRead.execute(s -> jdbc.sql("SELECT 1").query(Integer.class).single()));
     }
 

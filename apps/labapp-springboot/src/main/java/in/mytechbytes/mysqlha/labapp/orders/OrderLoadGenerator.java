@@ -6,6 +6,8 @@ import io.micrometer.core.instrument.MeterRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -40,6 +42,12 @@ public class OrderLoadGenerator {
                 .description("Reads on a secondary that did not see our own write yet").register(registry);
     }
 
+    /** LOAD_ENABLED=true only takes effect after startup (tables exist). */
+    private final AtomicBoolean ready = new AtomicBoolean(false);
+
+    @EventListener(ApplicationReadyEvent.class)
+    public void onReady() { ready.set(true); }
+
     public void start() { running.set(true); }
     public void stop()  { running.set(false); }
 
@@ -55,7 +63,7 @@ public class OrderLoadGenerator {
 
     @Scheduled(fixedDelayString = "${app.load.delay-ms:200}")
     public void tick() {
-        if (!running.get()) return;
+        if (!ready.get() || !running.get()) return;
         long n = seq.incrementAndGet();
 
         // 1. CREATE on the primary (retried inside OrderService)

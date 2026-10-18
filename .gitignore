@@ -3,3 +3,6 @@
 client.cnf
 tx.log
 routers.txt
+apps/labapp/mvnw
+apps/labapp/mvnw.cmd
+apps/labapp/.mvn/

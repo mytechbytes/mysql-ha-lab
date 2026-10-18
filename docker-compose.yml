@@ -156,6 +156,20 @@ services:
     ports:
       - "3000:3000"
     networks: [cluster]
+  labapp-springboot:
+    build: ./apps/labapp
+    image: ${LABAPP_SPRINGBOOT_IMAGE:-mysql-ha-labapp-springboot:latest}
+    container_name: labapp-springboot
+    profiles: [app]
+    restart: unless-stopped
+    depends_on: [router-lb]
+    environment:
+      DB_USER: ${APP_USER}
+      DB_PASSWORD: ${APP_PASSWORD}
+      LOAD_ENABLED: "false"
+    ports:
+      - "8080:8080"
+    networks: [cluster]
 networks:
   cluster:
     name: ${NETWORK_CLUSTER_NAME}

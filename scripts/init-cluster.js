@@ -73,4 +73,39 @@ try {
   println(`Tuning NOT applied (is every member ONLINE?): ${e.message}`);
 }
 
+// 5. Application schemas and users. Re-applied on every run (safe to repeat): creates what is
+//    missing and re-syncs passwords with .env. Runs on the PRIMARY; Group Replication copies it.
+//    Each account only gets rights on its own schema (least privilege).
+const APP_ACCOUNTS = [
+  // [schema,             user env var,                 password env var]
+  ['app',               'APP_USER',                   'APP_PASSWORD'],                  // shell helpers (m, w, tx)
+  ['labapp_springboot', 'LABAPP_SPRINGBOOT_DB_USER',  'LABAPP_SPRINGBOOT_DB_PASSWORD'], // Lesson 10, Spring Boot
+  ['labapp_go',         'LABAPP_GO_DB_USER',          'LABAPP_GO_DB_PASSWORD'],         // Lesson 10, Go
+];
+const APP_PRIVILEGES = 'SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER';
+
+const ident = v => { if (!/^[A-Za-z0-9_]+$/.test(v)) throw new Error(`invalid name: ${v}`); return v; };
+const quote = v => "'" + String(v).replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "'";
+
+try {
+  const primary = cluster.status().defaultReplicaSet.primary;      // e.g. "mysql1:3306"
+  shell.connect(`root:${ROOT_PW}@${primary}`);
+  const s = shell.getSession();
+  for (const [schema, userVar, pwVar] of APP_ACCOUNTS) {
+    const user = os.getenv(userVar), pw = os.getenv(pwVar);
+    if (!user || !pw) { println(`App account ${schema}: skipped (${userVar}/${pwVar} not set)`); continue; }
+    const u = `${quote(ident(user))}@'%'`;
+    s.runSql(`CREATE DATABASE IF NOT EXISTS ${ident(schema)}`);
+    s.runSql(`CREATE USER IF NOT EXISTS ${u} IDENTIFIED BY ${quote(pw)}`);
+    s.runSql(`ALTER USER ${u} IDENTIFIED BY ${quote(pw)}`);
+    s.runSql(`GRANT ${APP_PRIVILEGES} ON ${ident(schema)}.* TO ${u}`);
+    println(`App account ${schema}: user ${user} ready`);
+  }
+  // test table of the shell helpers (txloop, w); the lab apps create their own tables
+  s.runSql('CREATE TABLE IF NOT EXISTS app.t (id INT AUTO_INCREMENT PRIMARY KEY, v INT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)');
+  shell.connect(`${ADM}:${ADM_PW}@mysql1:3306`);
+} catch (e) {
+  println(`App accounts NOT created (is there a primary?): ${e.message}`);
+}
+
 print(JSON.stringify(cluster.status(), null, 2));

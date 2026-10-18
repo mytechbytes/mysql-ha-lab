@@ -121,17 +121,39 @@ For `mysqlsh` (used by `mstatus`) the password goes through standard input inste
 | `root` | Setup only | Everything | MySQL image (`MYSQL_ROOT_PASSWORD`, `MYSQL_ROOT_HOST=%`) |
 | `clusteradmin` | Cluster management | Group Replication, clone, metadata, user creation. **No rights on application data.** | `dba.configureInstance()` in `cluster-init` |
 | `exporter` | Read-only metrics | `PROCESS, REPLICATION CLIENT, SELECT` on `*.*` | `monitoring-init` ([Lesson 3](03-monitoring.md)) |
-| `app` | Test data | `SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER` on `app.*` only | You, below |
-| `labapp_springboot` | Spring Boot lab app | Same rights, on `labapp_springboot.*` only | You, [below](#create-the-lab-app-users) |
-| `labapp_go` | Go lab app | Same rights, on `labapp_go.*` only | You, [below](#create-the-lab-app-users) |
+| `app` | Test data | `SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER` on `app.*` only | `cluster-init` (automatic) |
+| `labapp_springboot` | Spring Boot lab app | Same rights, on `labapp_springboot.*` only | `cluster-init` (automatic) |
+| `labapp_go` | Go lab app | Same rights, on `labapp_go.*` only | `cluster-init` (automatic) |
 
 `clusteradmin` can create the `app` database but gets `ERROR 1142 ... INSERT command denied` when writing to it. That's intended: data gets its own least-privilege account.
 
 Users are created **once, on the primary** (through the router on port 6446). Group Replication copies them to every node.
 
-### Create the app user and the test table
+### Application users: created automatically
 
-Once the cluster is running ([Lesson 1](01-innodb-cluster.md)):
+`cluster-init` creates every application schema and user at the end of each run
+(`scripts/init-cluster.js`, step 5), with the names and passwords from `.env`:
+
+| Schema | User (from `.env`) | Used by |
+|---|---|---|
+| `app` (+ table `app.t`) | `APP_USER` / `APP_PASSWORD` | shell helpers `m`, `w`, `tx`, `txloop` |
+| `labapp_springboot` | `LABAPP_SPRINGBOOT_DB_USER` / `_PASSWORD` | Spring Boot lab app |
+| `labapp_go` | `LABAPP_GO_DB_USER` / `_PASSWORD` | Go lab app |
+
+It is safe to repeat: missing schemas and users are created, existing passwords are re-synced
+with `.env`. After changing a password in `.env`, just run it again:
+
+```bash
+docker compose up -d cluster-init
+docker logs --tail 100 -f cluster-init      # "App account ...: user ... ready"
+```
+
+A variable missing from `.env` is reported as `skipped`. The log line
+`App accounts NOT created` means the cluster had no primary at that moment; run it again.
+
+### Manual fallback: create the app user and the test table
+
+Only needed if `cluster-init` could not do it. Once the cluster is running ([Lesson 1](01-innodb-cluster.md)):
 
 ```bash
 mroot -e "
@@ -153,9 +175,9 @@ w "SELECT @@hostname, CURRENT_USER()"     # primary's name, app@%
 tx 1                                      # OK ... node=<primary>
 ```
 
-### Create the lab app users
+### Manual fallback: create the lab app users
 
-Each lab app ([Lesson 10](10-spring-app.md)) gets **its own schema and its own user**, so their
+Normally done by `cluster-init` (above). Each lab app ([Lesson 10](10-spring-app.md)) gets **its own schema and its own user**, so their
 data, connections and grants never mix with each other or with the `app` schema of the helpers.
 The apps create their tables themselves at startup.
 

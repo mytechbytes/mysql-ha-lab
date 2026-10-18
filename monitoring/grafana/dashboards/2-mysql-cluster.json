@@ -1,35 +1,97 @@
 {
   "uid": "mysql-innodb-cluster",
-  "title": "MySQL InnoDB Cluster",
+  "title": "2 \u00b7 MySQL Cluster",
+  "description": "Group members, workload per node and Group Replication health.",
   "tags": [
-    "mysql",
-    "group-replication"
+    "mysql-ha"
   ],
-  "timezone": "browser",
   "schemaVersion": 39,
-  "version": 2,
+  "version": 1,
   "editable": true,
   "refresh": "5s",
   "time": {
     "from": "now-15m",
     "to": "now"
   },
+  "timezone": "browser",
+  "graphTooltip": 1,
+  "links": [
+    {
+      "title": "MySQL HA dashboards",
+      "type": "dashboards",
+      "tags": [
+        "mysql-ha"
+      ],
+      "asDropdown": true,
+      "includeVars": false,
+      "keepTime": true
+    }
+  ],
+  "templating": {
+    "list": []
+  },
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      },
+      {
+        "name": "Primary changed",
+        "enable": true,
+        "iconColor": "purple",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "expr": "max by (member_host) (mysql_perf_schema_replication_group_member_info{member_role=\"PRIMARY\"}) unless max by (member_host) (mysql_perf_schema_replication_group_member_info{member_role=\"PRIMARY\"} offset 15s)",
+        "step": "5s",
+        "titleFormat": "new primary: {{member_host}}",
+        "tagKeys": "member_host",
+        "useValueForTime": false
+      }
+    ]
+  },
   "panels": [
     {
-      "id": 26,
-      "type": "row",
-      "title": "Cluster overview",
-      "collapsed": false,
+      "type": "text",
+      "title": "",
+      "options": {
+        "mode": "markdown",
+        "content": "### 2 \u00b7 MySQL Cluster \u2014 are the nodes and replication healthy?\n**Members**: who is in the group and in which role. **Workload**: what clients make the nodes do.\n**Replication**: how far secondaries are behind and whether transactions conflict.\nHealthy: 3 members ONLINE, backlog near 0, no conflicts or rollbacks."
+      },
+      "transparent": true,
+      "id": 1,
       "gridPos": {
         "x": 0,
         "y": 0,
+        "w": 24,
+        "h": 4
+      }
+    },
+    {
+      "type": "row",
+      "title": "Members",
+      "id": 2,
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 4,
         "w": 24,
         "h": 1
       },
       "panels": []
     },
     {
-      "id": 1,
+      "id": 3,
       "title": "Nodes reachable",
       "type": "stat",
       "datasource": {
@@ -38,7 +100,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 1,
+        "y": 5,
         "w": 6,
         "h": 4
       },
@@ -91,7 +153,7 @@
       }
     },
     {
-      "id": 2,
+      "id": 4,
       "title": "Members ONLINE",
       "type": "stat",
       "datasource": {
@@ -100,7 +162,7 @@
       },
       "gridPos": {
         "x": 6,
-        "y": 1,
+        "y": 5,
         "w": 6,
         "h": 4
       },
@@ -153,7 +215,7 @@
       }
     },
     {
-      "id": 3,
+      "id": 5,
       "title": "Current primary",
       "type": "stat",
       "datasource": {
@@ -162,7 +224,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 1,
+        "y": 5,
         "w": 6,
         "h": 4
       },
@@ -209,18 +271,12 @@
       }
     },
     {
-      "id": 4,
-      "title": "Statements / sec",
       "type": "stat",
+      "title": "Primaries in range",
+      "description": "How many different hosts held the PRIMARY role in the selected range. 1 = no failover or switchover; 2+ = the primary moved.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 18,
-        "y": 1,
-        "w": 6,
-        "h": 4
       },
       "targets": [
         {
@@ -228,524 +284,107 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
+          "expr": "count(count_over_time(max by (member_host) (mysql_perf_schema_replication_group_member_info{member_role=\"PRIMARY\"})[$__range:15s]))",
+          "legendFormat": "",
           "refId": "A",
-          "expr": "sum(rate(mysql_global_status_commands_total[$__rate_interval]))"
+          "instant": true,
+          "range": false
         }
       ],
-      "description": "",
       "fieldConfig": {
         "defaults": {
-          "unit": "ops",
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
               {
                 "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "value",
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center"
-      }
-    },
-    {
-      "id": 16,
-      "type": "row",
-      "title": "MySQL Routers (via HAProxy)",
-      "collapsed": false,
-      "gridPos": {
-        "x": 0,
-        "y": 5,
-        "w": 24,
-        "h": 1
-      },
-      "panels": []
-    },
-    {
-      "id": 17,
-      "title": "Healthy routers (R/W 6446)",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 6,
-        "w": 6,
-        "h": 4
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "refId": "A",
-          "expr": "max(haproxy_backend_active_servers{proxy=\"routers_rw\"})"
-        }
-      ],
-      "description": "Routers HAProxy currently sends write traffic to. 1 of 2 still works; 0 means the app cannot reach the database.",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
                 "value": null
               },
               {
                 "color": "orange",
-                "value": 1
-              },
-              {
-                "color": "green",
                 "value": 2
               }
             ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "value",
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center"
-      }
-    },
-    {
-      "id": 18,
-      "title": "Healthy routers (R/O 6447)",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 6,
-        "y": 6,
-        "w": 6,
-        "h": 4
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
           },
-          "refId": "A",
-          "expr": "max(haproxy_backend_active_servers{proxy=\"routers_ro\"})"
-        }
-      ],
-      "description": "Routers HAProxy currently sends read-only traffic to.",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "red",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 1
-              },
-              {
-                "color": "green",
-                "value": 2
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "value",
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center"
-      }
-    },
-    {
-      "id": 19,
-      "title": "Client sessions via load balancer",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 12,
-        "y": 6,
-        "w": 6,
-        "h": 4
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "refId": "A",
-          "expr": "sum(haproxy_frontend_current_sessions{proxy=~\"mysql_rw|mysql_ro\"})"
-        }
-      ],
-      "description": "Open client connections on ports 6446 + 6447.",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "blue",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "value",
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center"
-      }
-    },
-    {
-      "id": 20,
-      "title": "Router health-check failures (15m)",
-      "type": "stat",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 18,
-        "y": 6,
-        "w": 6,
-        "h": 4
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "refId": "A",
-          "expr": "sum(increase(haproxy_server_check_failures_total{proxy=~\"routers_.*\"}[15m]))"
-        }
-      ],
-      "description": "Failed HAProxy health checks against the routers in the last 15 minutes.",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              },
-              {
-                "color": "orange",
-                "value": 1
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "value",
-        "colorMode": "background",
-        "graphMode": "none",
-        "justifyMode": "center"
-      }
-    },
-    {
-      "id": 21,
-      "title": "Router up / down",
-      "type": "timeseries",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 10,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "refId": "A",
-          "expr": "max by (server) (haproxy_server_status{proxy=\"routers_rw\", state=\"UP\"})",
-          "legendFormat": "{{server}}"
-        }
-      ],
-      "description": "1 = HAProxy health check passes, 0 = router marked DOWN (2 failed checks, ~4s).",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          },
-          "min": 0,
-          "max": 1,
           "decimals": 0
         },
         "overrides": []
       },
       "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
+        "reduceOptions": {
           "calcs": [
-            "lastNotNull",
-            "max"
-          ]
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
         },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "id": 22,
-      "title": "Open sessions per router",
-      "type": "timeseries",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto",
+        "justifyMode": "auto"
       },
+      "id": 6,
       "gridPos": {
-        "x": 12,
-        "y": 10,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "refId": "A",
-          "expr": "sum by (server, proxy) (haproxy_server_current_sessions{proxy=~\"routers_.*\"})",
-          "legendFormat": "{{server}} {{proxy}}"
-        }
-      ],
-      "description": "Connections currently passing through each router. With leastconn they stay roughly balanced.",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
+        "x": 18,
+        "y": 5,
+        "w": 6,
+        "h": 4
       }
     },
     {
-      "id": 23,
-      "title": "New connections / sec per router",
-      "type": "timeseries",
+      "id": 7,
+      "title": "Group members",
+      "type": "table",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
       },
       "gridPos": {
         "x": 0,
-        "y": 18,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "refId": "A",
-          "expr": "sum by (server, proxy) (rate(haproxy_server_sessions_total{proxy=~\"routers_.*\"}[$__rate_interval]))",
-          "legendFormat": "{{server}} {{proxy}}"
-        }
-      ],
-      "description": "When a router dies, its share moves to the other one.",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ops",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "id": 24,
-      "title": "Router connection errors / sec",
-      "type": "timeseries",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 12,
-        "y": 18,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "refId": "A",
-          "expr": "sum by (server) (rate(haproxy_server_connection_errors_total{proxy=~\"routers_.*\"}[$__rate_interval]))",
-          "legendFormat": "{{server}} connect errors"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "refId": "B",
-          "expr": "sum by (server) (rate(haproxy_server_check_failures_total{proxy=~\"routers_.*\"}[$__rate_interval]))",
-          "legendFormat": "{{server}} check failures"
-        }
-      ],
-      "description": "Spikes when a router is killed or restarting.",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ops",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "id": 25,
-      "type": "row",
-      "title": "MySQL cluster",
-      "collapsed": false,
-      "gridPos": {
-        "x": 0,
-        "y": 26,
+        "y": 9,
         "w": 24,
-        "h": 1
+        "h": 6
       },
-      "panels": []
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "max by (member_host, member_role, member_state, member_version) (mysql_perf_schema_replication_group_member_info)",
+          "format": "table",
+          "instant": true
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm"
+      },
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true
+            },
+            "indexByName": {
+              "member_host": 0,
+              "member_role": 1,
+              "member_state": 2,
+              "member_version": 3
+            }
+          }
+        }
+      ],
+      "description": "One row per group member as seen by each node: host, role (PRIMARY/SECONDARY), state (ONLINE/RECOVERING/\u2026), version."
     },
     {
-      "id": 5,
+      "id": 8,
       "title": "Node up / down",
       "type": "timeseries",
       "datasource": {
@@ -754,7 +393,7 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 27,
+        "y": 15,
         "w": 12,
         "h": 8
       },
@@ -769,7 +408,7 @@
           "legendFormat": "{{node}}"
         }
       ],
-      "description": "1 = reachable, 0 = down.",
+      "description": "1 = the exporter can reach that MySQL server. A dip to 0 = node down or killed.",
       "fieldConfig": {
         "defaults": {
           "unit": "short",
@@ -797,8 +436,8 @@
       }
     },
     {
-      "id": 6,
-      "title": "Statements / sec by node",
+      "id": 9,
+      "title": "Connections by node",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -806,7 +445,81 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 27,
+        "y": 15,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "mysql_global_status_threads_connected",
+          "legendFormat": "{{node}} connected"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "B",
+          "expr": "mysql_global_status_threads_running",
+          "legendFormat": "{{node}} running"
+        }
+      ],
+      "description": "Client connections (connected) and threads executing a statement right now (running), per node.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Workload",
+      "id": 10,
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 11,
+      "title": "Statements / sec by node",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
         "w": 12,
         "h": 8
       },
@@ -821,7 +534,7 @@
           "legendFormat": "{{node}}"
         }
       ],
-      "description": "",
+      "description": "All statements per second, per node. The primary carries the writes, the secondaries the reads.",
       "fieldConfig": {
         "defaults": {
           "unit": "ops",
@@ -849,59 +562,7 @@
       }
     },
     {
-      "id": 7,
-      "title": "CRUD statements / sec (cluster)",
-      "type": "timeseries",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 35,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "refId": "A",
-          "expr": "sum by (command) (rate(mysql_global_status_commands_total{command=~\"select|insert|update|delete\"}[$__rate_interval]))",
-          "legendFormat": "{{command}}"
-        }
-      ],
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "ops",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "id": 8,
+      "id": 12,
       "title": "Client writes / sec by node",
       "type": "timeseries",
       "datasource": {
@@ -910,7 +571,7 @@
       },
       "gridPos": {
         "x": 12,
-        "y": 35,
+        "y": 24,
         "w": 12,
         "h": 8
       },
@@ -953,8 +614,8 @@
       }
     },
     {
-      "id": 9,
-      "title": "InnoDB row operations / sec",
+      "id": 13,
+      "title": "CRUD statements / sec (cluster)",
       "type": "timeseries",
       "datasource": {
         "type": "prometheus",
@@ -962,7 +623,59 @@
       },
       "gridPos": {
         "x": 0,
-        "y": 43,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "sum by (command) (rate(mysql_global_status_commands_total{command=~\"select|insert|update|delete\"}[$__rate_interval]))",
+          "legendFormat": "{{command}}"
+        }
+      ],
+      "description": "SELECT / INSERT / UPDATE / DELETE per second across the cluster.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "id": 14,
+      "title": "InnoDB row operations / sec",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 32,
         "w": 12,
         "h": 8
       },
@@ -1005,7 +718,81 @@
       }
     },
     {
-      "id": 10,
+      "id": 15,
+      "title": "Network traffic",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 24,
+        "h": 7
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "A",
+          "expr": "rate(mysql_global_status_bytes_received[$__rate_interval])",
+          "legendFormat": "{{node}} in"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "refId": "B",
+          "expr": "rate(mysql_global_status_bytes_sent[$__rate_interval])",
+          "legendFormat": "{{node}} out"
+        }
+      ],
+      "description": "Bytes received and sent per node: clients plus Group Replication traffic.",
+      "fieldConfig": {
+        "defaults": {
+          "unit": "Bps",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      }
+    },
+    {
+      "type": "row",
+      "title": "Replication",
+      "id": 16,
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 47,
+        "w": 24,
+        "h": 1
+      },
+      "panels": []
+    },
+    {
+      "id": 17,
       "title": "GR backlog (replication lag)",
       "type": "timeseries",
       "datasource": {
@@ -1013,8 +800,8 @@
         "uid": "prometheus"
       },
       "gridPos": {
-        "x": 12,
-        "y": 43,
+        "x": 0,
+        "y": 48,
         "w": 12,
         "h": 8
       },
@@ -1066,7 +853,7 @@
       }
     },
     {
-      "id": 11,
+      "id": 18,
       "title": "Replicated transactions / sec",
       "type": "timeseries",
       "datasource": {
@@ -1074,8 +861,8 @@
         "uid": "prometheus"
       },
       "gridPos": {
-        "x": 0,
-        "y": 51,
+        "x": 12,
+        "y": 48,
         "w": 12,
         "h": 8
       },
@@ -1127,7 +914,7 @@
       }
     },
     {
-      "id": 12,
+      "id": 19,
       "title": "Certification conflicts & rollbacks / sec",
       "type": "timeseries",
       "datasource": {
@@ -1135,9 +922,9 @@
         "uid": "prometheus"
       },
       "gridPos": {
-        "x": 12,
-        "y": 51,
-        "w": 12,
+        "x": 0,
+        "y": 56,
+        "w": 24,
         "h": 8
       },
       "targets": [
@@ -1186,183 +973,6 @@
           "sort": "desc"
         }
       }
-    },
-    {
-      "id": 13,
-      "title": "Connections by node",
-      "type": "timeseries",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 59,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "refId": "A",
-          "expr": "mysql_global_status_threads_connected",
-          "legendFormat": "{{node}} connected"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "refId": "B",
-          "expr": "mysql_global_status_threads_running",
-          "legendFormat": "{{node}} running"
-        }
-      ],
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "id": 14,
-      "title": "Network traffic",
-      "type": "timeseries",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 12,
-        "y": 59,
-        "w": 12,
-        "h": 8
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "refId": "A",
-          "expr": "rate(mysql_global_status_bytes_received[$__rate_interval])",
-          "legendFormat": "{{node}} in"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "refId": "B",
-          "expr": "rate(mysql_global_status_bytes_sent[$__rate_interval])",
-          "legendFormat": "{{node}} out"
-        }
-      ],
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "unit": "Bps",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "showPoints": "never"
-          }
-        },
-        "overrides": []
-      },
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "bottom",
-          "calcs": [
-            "lastNotNull",
-            "max"
-          ]
-        },
-        "tooltip": {
-          "mode": "multi",
-          "sort": "desc"
-        }
-      }
-    },
-    {
-      "id": 15,
-      "title": "Group members",
-      "type": "table",
-      "datasource": {
-        "type": "prometheus",
-        "uid": "prometheus"
-      },
-      "gridPos": {
-        "x": 0,
-        "y": 67,
-        "w": 24,
-        "h": 6
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "refId": "A",
-          "expr": "max by (member_host, member_role, member_state, member_version) (mysql_perf_schema_replication_group_member_info)",
-          "format": "table",
-          "instant": true
-        }
-      ],
-      "options": {
-        "showHeader": true,
-        "cellHeight": "sm"
-      },
-      "transformations": [
-        {
-          "id": "organize",
-          "options": {
-            "excludeByName": {
-              "Time": true,
-              "Value": true
-            },
-            "indexByName": {
-              "member_host": 0,
-              "member_role": 1,
-              "member_state": 2,
-              "member_version": 3
-            }
-          }
-        }
-      ],
-      "description": "performance_schema.replication_group_members, deduplicated across exporters."
     }
-  ],
-  "templating": {
-    "list": []
-  },
-  "annotations": {
-    "list": []
-  }
+  ]
 }

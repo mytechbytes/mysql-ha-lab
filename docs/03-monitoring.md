@@ -34,7 +34,7 @@ monitoring/grafana/provisioning/
 ├── datasources/prometheus.yml             # Grafana → Prometheus connection
 └── dashboards/dashboards.yml              # where Grafana loads dashboards from
 monitoring/grafana/dashboards/
-└── mysql-cluster.json                     # the dashboard
+└── 1-overview.json … 6-connection-pools.json   # the dashboards (see "Dashboards" below)
 ```
 
 ---
@@ -211,7 +211,7 @@ scrape_configs:
     environment:
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
-      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/mysql-cluster.json
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/1-overview.json
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
@@ -286,7 +286,7 @@ docker logs --tail 100 -f monitoring-init     # expect: "Exporter user 'exporter
 
 | URL | What |
 |---|---|
-| http://localhost:3000 | Grafana → **Dashboards → MySQL HA → MySQL InnoDB Cluster** (login `admin` / `GRAFANA_ADMIN_PASSWORD`) |
+| http://localhost:3000 | Grafana → **Dashboards → MySQL HA → 1 · Overview** (login `admin` / `GRAFANA_ADMIN_PASSWORD`) |
 | http://localhost:9090 | Prometheus → *Status → Target health*: 3 exporters, HAProxy, Prometheus, all UP |
 
 ```bash
@@ -361,7 +361,7 @@ Hover the ⓘ next to a panel title for an explanation.
 | InnoDB rows | `mysql_global_status_innodb_row_ops_total` |
 | Router panels | `haproxy_*`, see [Lesson 4](04-multiple-routers.md#router-panels) |
 
-To change the dashboard: edit it in Grafana, then *Export → Export as JSON* and overwrite `monitoring/grafana/dashboards/mysql-cluster.json`. UI-only changes are lost on `down -v`.
+To change the dashboard: edit it in Grafana, then *Export → Export as JSON* and overwrite the matching file in `monitoring/grafana/dashboards/`. UI-only changes are lost on `down -v`.
 
 ### Useful PromQL
 
@@ -391,3 +391,19 @@ max by (node) (mysql_perf_schema_transactions_remote_in_applier_queue)
 | after `docker start` | Members back to 3; **GR backlog** briefly rises while the node catches up |
 
 Next: [Lesson 4: Multiple routers →](04-multiple-routers.md)
+
+## Dashboards
+
+Six dashboards, one question each. All are in the folder *MySQL HA* and linked to each other (menu *MySQL HA dashboards*, top right).
+
+| # | Dashboard | File | Answers | Lesson |
+|---|---|---|---|---|
+| 1 | Overview (home) | `1-overview.json` | Is everything OK right now? One row per layer: cluster, routing, applications | 3, 4, 10 |
+| 2 | MySQL Cluster | `2-mysql-cluster.json` | Members and roles, workload per node, replication backlog, conflicts | 3 |
+| 3 | Routers & HAProxy | `3-routers-haproxy.json` | Router health checks, sessions and errors per router | 4 |
+| 4 | Applications | `4-applications.json` | Success %, failed vs retried operations, errors absorbed by retry, latency, stale reads | 10 |
+| 5 | Failover & Outages | `5-failover-outages.json` | Incident view: node → primary → router → app timelines, outage start / end / duration | 6, 10 |
+| 6 | Connection Pools | `6-connection-pools.json` | Writer / reader pools: active, idle, pending, timeouts | 10 |
+
+Each dashboard starts with a short text explaining how to read it, and every panel has a description (hover the *i* icon).
+Two annotations appear on the graphs: **purple** = a new primary was elected, **red** = an app's writer path went down or up.

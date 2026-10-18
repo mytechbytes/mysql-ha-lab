@@ -37,7 +37,7 @@ same API and metric names, so both can run side by side and share the dashboard.
 | `.../resources/application-dev.yml` | Dev profile: app on the Mac, cluster via `localhost:6446/6447`, reads `../../.env` |
 | `docker-compose.yml` | Services `labapp-springboot` (profiles `app`, `app-springboot`) and `labapp-go` (`app`, `app-go`) |
 | `monitoring/prometheus.yml` | Jobs `labapp-springboot`, `labapp-go` (Docker and dev-mode targets) |
-| `monitoring/grafana/dashboards/lab-apps.json` | Dashboard *MySQL HA: Lab applications* |
+| `monitoring/grafana/dashboards/4-…`, `5-…`, `6-….json` | Dashboards *4 · Applications*, *5 · Failover & Outages*, *6 · Connection Pools* |
 
 ## Setup
 
@@ -61,8 +61,21 @@ would become part of the password.
 
 ### 2. Database, user and password
 
-One schema and one user **per app**, created once as root on the primary (Group Replication copies
-them to every node). The credentials come from `.env`; nothing is typed on the command line.
+One schema and one user **per app**. **`cluster-init` creates them automatically** on every run
+(`scripts/init-cluster.js`, step 5) from the `.env` values above, on the primary; Group Replication
+copies them to every node. So after setting `.env`:
+
+```bash
+docker compose up -d cluster-init
+docker logs --tail 100 cluster-init | grep 'App account'
+# App account app: user app ready
+# App account labapp_springboot: user labapp_springboot ready
+# App account labapp_go: user labapp_go ready
+```
+
+Run it again after changing a password in `.env`: it re-syncs the password (`ALTER USER`).
+
+**Manual fallback** (what step 5 does, if you ever need it by hand):
 
 ```bash
 source scripts/helpers.sh
@@ -156,22 +169,25 @@ cluster with the `dev` profile. Without the cluster it fails with a pool timeout
 |---|---|---|
 | `jdbcDialect ... springboot-writer - Connection is not available, request timed out after 3001ms (total=0)` during `mvn install` | Spring Data JDBC (pulled in by `spring-boot-starter-data-jdbc-test`) opens a connection at startup to detect the dialect, and the test used the default profile, whose host `mysql-router` does not resolve on the Mac | Remove `spring-boot-starter-data-jdbc-test` (the app uses `JdbcClient`, not Spring Data); the test runs with `@ActiveProfiles("dev")` |
 | `Access denied for user ''@...` | `.env` not found, user empty | Working directory must be `apps/labapp-springboot`; check `spring.config.import` in `application-dev.yml` |
-| `Access denied for user 'labapp_springboot'@...` | User missing or password differs from `.env` | Rerun the SQL in [step 2](#2-database-user-and-password) (`ALTER USER` re-syncs it) |
-| `Unknown database 'labapp_springboot'` | Schema not created | [Step 2](#2-database-user-and-password) |
+| `Access denied for user 'labapp_springboot'@...` (ERROR 1045, fails at once, not retried) | User missing or password differs from `.env` | `docker compose up -d cluster-init` (creates the user and re-syncs the password) |
+| `Unknown database 'labapp_springboot'` (ERROR 1049) | Schema not created | `docker compose up -d cluster-init` |
+| All writes take ~30 s and fail, probes DOWN, `firstError` shows `pool-timeout ... cause: ...` | The pool cannot open any connection; the cause is after `cause:` | Fix that cause (host, user, schema); configuration errors like 1045/1049 are no longer retried |
 | `docker compose --profile app ...` fails building `labapp-go` | `--profile app` includes both apps | Use `--profile app-springboot` until `apps/labapp-go` has its Dockerfile |
 
-## Monitoring: dashboard "MySQL HA: Lab applications"
+## Monitoring
 
-`monitoring/grafana/dashboards/lab-apps.json` is provisioned next to the cluster dashboard
-(Grafana → *MySQL HA*). The **Application** dropdown selects `labapp-springboot`, `labapp-go` or both.
+The app shows up in four dashboards (Grafana → *MySQL HA*; the **Application** dropdown selects
+`labapp-springboot`, `labapp-go` or both):
 
-| Row | Panels | Metrics |
-|---|---|---|
-| Health | DB path state timeline (writer / reader), last outage start / end / duration, outages in range | `app_db_probe_up`, `app_db_outage_last_*_seconds`, `app_db_outage_seconds_count` |
-| Operations | Write / read success %, failed and retried ops, failed ops per minute, ops by outcome, errors absorbed by retry (by MySQL error), p99 and max latency, stale reads, throughput | `app_db_ops_total`, `app_db_attempt_errors_total`, `app_db_op_seconds`, `app_db_stale_reads_total` |
-| Connection pools | Hikari active / idle / pending, timeouts, acquire time; Go `database/sql` stats | `hikaricp_*`, `go_sql_*` |
+| Dashboard | What you see for the app |
+|---|---|
+| 1 · Overview | Write / read path up, success %, failed ops, last outage duration |
+| 4 · Applications | Did users notice (success %, failed vs retried) and why (errors by MySQL code, latency, stale reads) |
+| 5 · Failover & Outages | Node → primary → router → app timelines on one screen, plus the outage report (start, end, duration) |
+| 6 · Connection Pools | Hikari writer / reader pools: active, idle, pending, timeouts |
 
-A red annotation marks every change of the writer path (down or up) on all panels.
+Metrics used: `app_db_ops_total`, `app_db_attempt_errors_total`, `app_db_op_seconds`, `app_db_stale_reads_total`,
+`app_db_probe_up`, `app_db_outage_last_*_seconds`, `app_db_outage_seconds_count`, `hikaricp_*` (Go: `go_sql_*`).
 
 Prometheus has two targets per app, one for each way of running it:
 
@@ -185,7 +201,7 @@ The one that is not running is simply `DOWN` in *Status → Targets*. After chan
 
 ```bash
 docker compose --profile monitoring up -d prometheus      # picks up extra_hosts and the new config
-docker compose --profile monitoring restart grafana       # loads lab-apps.json (or wait ~30 s)
+docker compose --profile monitoring up -d grafana         # new home dashboard + the 6 dashboard files
 ```
 
 ## Next

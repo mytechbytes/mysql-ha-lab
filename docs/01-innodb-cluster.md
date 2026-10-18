@@ -253,6 +253,8 @@ Missing nodes are added with **clone** (a full copy of an existing member); memb
 
 **Step 4: failover tuning** (added in Lesson 6): sets `expelTimeout`, `autoRejoinTries` and `unreachable_majority_timeout` on every run. See [6.5](06-failover-tuning.md#65-making-the-tuning-permanent).
 
+**Step 5: application accounts** (added in Lesson 10): creates the schemas and users `app`, `labapp_springboot`, `labapp_go` from `.env` on the primary, and the helpers' test table `app.t`. See [Setup → Application users](00-setup.md#application-users-created-automatically).
+
 | Run | Result |
 |---|---|
 | `down -v` then `up -d` | Cluster built from scratch |

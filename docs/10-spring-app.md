@@ -36,7 +36,8 @@ same API and metric names, so both can run side by side and share the dashboard.
 | `.../resources/application.yaml` | Pools, timeouts, retry, load, probe, metrics |
 | `.../resources/application-dev.yml` | Dev profile: app on the Mac, cluster via `localhost:6446/6447`, reads `../../.env` |
 | `docker-compose.yml` | Services `labapp-springboot` (profiles `app`, `app-springboot`) and `labapp-go` (`app`, `app-go`) |
-| `monitoring/prometheus.yml` | Jobs `labapp-springboot`, `labapp-go` |
+| `monitoring/prometheus.yml` | Jobs `labapp-springboot`, `labapp-go` (Docker and dev-mode targets) |
+| `monitoring/grafana/dashboards/lab-apps.json` | Dashboard *MySQL HA: Lab applications* |
 
 ## Setup
 
@@ -159,8 +160,35 @@ cluster with the `dev` profile. Without the cluster it fails with a pool timeout
 | `Unknown database 'labapp_springboot'` | Schema not created | [Step 2](#2-database-user-and-password) |
 | `docker compose --profile app ...` fails building `labapp-go` | `--profile app` includes both apps | Use `--profile app-springboot` until `apps/labapp-go` has its Dockerfile |
 
+## Monitoring: dashboard "MySQL HA: Lab applications"
+
+`monitoring/grafana/dashboards/lab-apps.json` is provisioned next to the cluster dashboard
+(Grafana → *MySQL HA*). The **Application** dropdown selects `labapp-springboot`, `labapp-go` or both.
+
+| Row | Panels | Metrics |
+|---|---|---|
+| Health | DB path state timeline (writer / reader), last outage start / end / duration, outages in range | `app_db_probe_up`, `app_db_outage_last_*_seconds`, `app_db_outage_seconds_count` |
+| Operations | Write / read success %, failed and retried ops, failed ops per minute, ops by outcome, errors absorbed by retry (by MySQL error), p99 and max latency, stale reads, throughput | `app_db_ops_total`, `app_db_attempt_errors_total`, `app_db_op_seconds`, `app_db_stale_reads_total` |
+| Connection pools | Hikari active / idle / pending, timeouts, acquire time; Go `database/sql` stats | `hikaricp_*`, `go_sql_*` |
+
+A red annotation marks every change of the writer path (down or up) on all panels.
+
+Prometheus has two targets per app, one for each way of running it:
+
+| App runs | Target | Shown as |
+|---|---|---|
+| In Docker (`--profile app-springboot`) | `labapp-springboot:8080` | `mode="docker"` |
+| On the Mac, dev profile | `host.docker.internal:8081` | `mode="dev"` |
+
+The one that is not running is simply `DOWN` in *Status → Targets*. After changing
+`prometheus.yml` or `docker-compose.yml`:
+
+```bash
+docker compose --profile monitoring up -d prometheus      # picks up extra_hosts and the new config
+docker compose --profile monitoring restart grafana       # loads lab-apps.json (or wait ~30 s)
+```
+
 ## Next
 
 - 10.2 planned switchover and 10.3 primary crash with the load loop running
 - 10.4 lost commit (dedup), 10.5 stale reads, 10.6 router failure
-- 10.7 Grafana panels for the app (failed reads/writes, retries, outage start/end)

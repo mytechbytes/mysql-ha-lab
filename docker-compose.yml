@@ -136,6 +136,8 @@ services:
     volumes:
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
+    extra_hosts:
+      - "host.docker.internal:host-gateway"   # reach apps running on the host (dev mode); built in on Docker Desktop
     ports:
       - "9090:9090"
     networks: [cluster]

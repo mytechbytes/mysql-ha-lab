@@ -27,11 +27,12 @@ same API and metric names, so both can run side by side and share the dashboard.
 | Path | Purpose |
 |---|---|
 | `apps/labapp-springboot/` | Spring Boot 4.1, Java 25, Maven |
-| `.../configs/DataSourceConfig.java` | Two HikariCP pools (`springboot-writer` → 6446, `springboot-reader` → 6447) bound from YAML, read/write routing, `writeTx` / `readTx` |
-| `.../configs/ReadWriteRoutingDataSource.java` | Read-only transaction → reader pool, everything else → writer pool |
-| `.../configs/Retry.java` | Retries a whole transaction on failover errors; metrics per operation and per failed attempt |
+| `.../db/DataSourceConfig.java` | Two HikariCP pools (`springboot-writer` → 6446, `springboot-reader` → 6447) bound from YAML, read/write routing, `writeTx` / `readTx` |
+| `.../db/ReadWriteRoutingDataSource.java` | Read-only transaction → reader pool, everything else → writer pool |
+| `.../db/Retry.java` | Retries a whole transaction on failover errors; metrics per operation and per failed attempt |
+| `.../web/DbErrorHandler.java` | Any controller: a DB error left after retries → `503` with the MySQL error text |
 | `.../orders/*` | Orders API, table creation at startup, background load loop |
-| `.../health/*` | `DbProbe`: one write + one read per second, records every outage (start, end, duration) |
+| `.../health/*` | `DbProbe`: one write + one read per second, records every outage (start, end, duration); `/health/db`; `/whoami` |
 | `.../resources/application.yaml` | Pools, timeouts, retry, load, probe, metrics |
 | `.../resources/application-dev.yml` | Dev profile: app on the Mac, cluster via `localhost:6446/6447`, reads `../../.env` |
 | `docker-compose.yml` | Services `labapp-springboot` (profiles `app`, `app-springboot`) and `labapp-go` (`app`, `app-go`) |

@@ -83,4 +83,4 @@ logging:
   level:
     com.zaxxer.hikari.pool.HikariPool: INFO
     load: INFO
-    in.mytechbytes.mysqlha.labapp.configs.Retry: WARN
+    in.mytechbytes.mysqlha.labapp.db.Retry: WARN

@@ -1,7 +1,5 @@
 package in.mytechbytes.mysqlha.labapp.orders;
 
-import in.mytechbytes.mysqlha.labapp.configs.Retry;
-import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -53,11 +51,6 @@ public class OrderController {
         return r.value() ? ResponseEntity.noContent().build() : notFound(id, r.attempts());
     }
 
-    /** Errors that survived all retries -> 503 with the MySQL error text. */
-    @ExceptionHandler(DataAccessException.class)
-    public ResponseEntity<Map<String, String>> dbError(DataAccessException e) {
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("error", Retry.describe(e)));
-    }
 
     private static ResponseEntity<Map<String, Object>> notFound(long id, int attempts) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)

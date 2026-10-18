@@ -1,4 +1,4 @@
-package in.mytechbytes.mysqlha.labapp.configs;
+package in.mytechbytes.mysqlha.labapp.db;
 
 import org.jspecify.annotations.Nullable;
 import org.springframework.jdbc.datasource.lookup.AbstractRoutingDataSource;

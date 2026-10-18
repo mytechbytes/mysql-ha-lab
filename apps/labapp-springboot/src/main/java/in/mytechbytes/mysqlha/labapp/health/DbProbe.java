@@ -1,6 +1,6 @@
 package in.mytechbytes.mysqlha.labapp.health;
 
-import in.mytechbytes.mysqlha.labapp.configs.Retry;
+import in.mytechbytes.mysqlha.labapp.db.Retry;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;

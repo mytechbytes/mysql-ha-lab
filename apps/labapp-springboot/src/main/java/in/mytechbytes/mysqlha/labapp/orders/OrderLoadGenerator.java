@@ -1,8 +1,8 @@
 package in.mytechbytes.mysqlha.labapp.orders;
 
-import in.mytechbytes.mysqlha.labapp.configs.Retry;
+import in.mytechbytes.mysqlha.labapp.db.Retry;
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
-import io.micrometer.core.instrument.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,8 +20,7 @@ public class OrderLoadGenerator {
     private static final Logger log = LoggerFactory.getLogger("load");
 
     private final OrderService orders;
-    private final MeterRegistry registry;
-    private final Timer createTimer;
+    private final Counter staleReads;
     private final AtomicBoolean running;
 
     private final AtomicLong seq = new AtomicLong();
@@ -35,10 +34,10 @@ public class OrderLoadGenerator {
     public OrderLoadGenerator(OrderService orders, MeterRegistry registry,
                               @Value("${app.load.enabled:false}") boolean enabled) {
         this.orders = orders;
-        this.registry = registry;
         this.running = new AtomicBoolean(enabled);
-        this.createTimer = Timer.builder("app.create.duration")
-                .description("CREATE including retries").publishPercentileHistogram().register(registry);
+        // ops, outcomes, latency and errors are recorded by Retry (app_db_*); only stale reads are counted here
+        this.staleReads = Counter.builder("app.db.stale.reads")
+                .description("Reads on a secondary that did not see our own write yet").register(registry);
     }
 
     public void start() { running.set(true); }
@@ -66,15 +65,13 @@ public class OrderLoadGenerator {
             w = orders.create("load", 1, null);
         } catch (RuntimeException e) {
             failed.incrementAndGet();
-            count("create", "fail");
             log.info("FAIL  #{} create {}", n, Retry.describe(e));
             return;
         }
         long ms = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - t0);
-        createTimer.record(ms, TimeUnit.MILLISECONDS);
         maxMs.accumulateAndGet(ms, Math::max);
-        if (w.attempts() > 1) { retried.incrementAndGet(); count("create", "retried"); }
-        else                  { ok.incrementAndGet();      count("create", "ok"); }
+        if (w.attempts() > 1) retried.incrementAndGet();
+        else                  ok.incrementAndGet();
         if (w.deduplicated()) dedup.incrementAndGet();
 
         // 2. READ it back from a secondary: did replication keep up?
@@ -83,15 +80,13 @@ public class OrderLoadGenerator {
             var r = orders.find(w.order().id(), false);
             if (r.value().isPresent()) {
                 read = "read " + r.value().get().readFrom();
-                count("read", "ok");
             } else {
                 stale.incrementAndGet();
-                count("read", "stale");
+                staleReads.increment();
                 String fresh = orders.find(w.order().id(), true).value().map(Order::readFrom).orElse("?");
                 read = "read STALE -> fresh " + fresh;
             }
         } catch (RuntimeException e) {
-            count("read", "fail");
             read = "read FAIL " + Retry.describe(e);
         }
 
@@ -100,7 +95,4 @@ public class OrderLoadGenerator {
                 w.deduplicated() ? " (dedup)" : "", read);
     }
 
-    private void count(String op, String result) {
-        registry.counter("app.ops", "op", op, "result", result).increment();
-    }
 }

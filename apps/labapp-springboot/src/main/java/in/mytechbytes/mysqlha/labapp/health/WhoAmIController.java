@@ -1,4 +1,4 @@
-package in.mytechbytes.mysqlha.labapp.controllers;
+package in.mytechbytes.mysqlha.labapp.health;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.simple.JdbcClient;

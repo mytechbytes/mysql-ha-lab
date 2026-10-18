@@ -1,4 +1,4 @@
-package in.mytechbytes.mysqlha.labapp.configs;
+package in.mytechbytes.mysqlha.labapp.db;
 
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Timer;

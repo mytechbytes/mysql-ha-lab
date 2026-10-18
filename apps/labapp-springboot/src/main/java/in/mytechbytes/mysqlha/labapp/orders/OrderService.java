@@ -1,6 +1,6 @@
 package in.mytechbytes.mysqlha.labapp.orders;
 
-import in.mytechbytes.mysqlha.labapp.configs.Retry;
+import in.mytechbytes.mysqlha.labapp.db.Retry;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.RowMapper;
@@ -36,7 +36,7 @@ public class OrderService {
     private final TransactionTemplate readTx;
     private final Retry retry;
 
-    public OrderService(JdbcClient jdbcClient, @Qualifier("writeTx") TransactionTemplate writeTx, @Qualifier("writeTx") TransactionTemplate readTx, Retry retry) {
+    public OrderService(JdbcClient jdbcClient, @Qualifier("writeTx") TransactionTemplate writeTx, @Qualifier("readTx") TransactionTemplate readTx, Retry retry) {
         this.jdbcClient = jdbcClient;
         this.writeTx = writeTx;
         this.readTx = readTx;
@@ -63,7 +63,7 @@ public class OrderService {
 
     public ReadResult<Optional<Order>> find(long id, boolean fresh) {
         TransactionTemplate tx = fresh ? writeTx : readTx;
-        Retry.Result<Optional<Order>> r = retry.run(Retry.Kind.READ, "read", () -> tx.execute(s ->
+        Retry.Result<Optional<Order>> r = retry.run(Retry.Kind.READ, fresh ? "read-fresh" : "read", () -> tx.execute(s ->
                 jdbcClient.sql(COLUMNS + "WHERE id = :id").param("id", id).query(ROW).optional()));
         return new ReadResult<>(r.value(), r.attempts());
     }

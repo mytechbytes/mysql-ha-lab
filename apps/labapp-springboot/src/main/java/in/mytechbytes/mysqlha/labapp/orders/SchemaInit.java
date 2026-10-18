@@ -1,6 +1,6 @@
 package in.mytechbytes.mysqlha.labapp.orders;
 
-import in.mytechbytes.mysqlha.labapp.configs.Retry;
+import in.mytechbytes.mysqlha.labapp.db.Retry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;

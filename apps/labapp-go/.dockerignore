@@ -1,0 +1,6 @@
+bin/
+*.log
+.idea/
+.vscode/
+Dockerfile
+.dockerignore

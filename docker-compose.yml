@@ -157,18 +157,36 @@ services:
       - "3000:3000"
     networks: [cluster]
   labapp-springboot:
-    build: ./apps/labapp
+    build: ./apps/labapp-springboot
     image: ${LABAPP_SPRINGBOOT_IMAGE:-mysql-ha-labapp-springboot:latest}
     container_name: labapp-springboot
-    profiles: [app]
+    hostname: labapp-springboot
+    profiles: [app, app-springboot]
     restart: unless-stopped
     depends_on: [router-lb]
     environment:
-      DB_USER: ${APP_USER}
-      DB_PASSWORD: ${APP_PASSWORD}
+      DB_USER: ${LABAPP_SPRINGBOOT_DB_USER}
+      DB_PASSWORD: ${LABAPP_SPRINGBOOT_DB_PASSWORD}
       LOAD_ENABLED: "false"
     ports:
       - "8080:8080"
+    networks: [cluster]
+
+  # Lab app in Go (apps/labapp-go): same API, metrics contract and DB setup, own schema/user
+  labapp-go:
+    build: ./apps/labapp-go
+    image: ${LABAPP_GO_IMAGE:-mysql-ha-labapp-go:latest}
+    container_name: labapp-go
+    hostname: labapp-go
+    profiles: [app, app-go]
+    restart: unless-stopped
+    depends_on: [router-lb]
+    environment:
+      DB_USER: ${LABAPP_GO_DB_USER}
+      DB_PASSWORD: ${LABAPP_GO_DB_PASSWORD}
+      LOAD_ENABLED: "false"
+    ports:
+      - "8090:8080"
     networks: [cluster]
 networks:
   cluster:

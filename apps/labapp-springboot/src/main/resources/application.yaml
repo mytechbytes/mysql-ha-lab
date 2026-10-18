@@ -3,16 +3,20 @@ server:
 
 spring:
   application:
-    name: labapp
+    name: labapp-springboot
+  task:
+    scheduling:
+      pool:
+        size: 4
 
 app:
   datasource:
     # Writes and read-modify-write transactions: HAProxy -> MySQL Router 6446 -> PRIMARY
     writer:
-      pool-name: writer
-      jdbc-url: jdbc:mysql://${DB_HOST:mysql-router}:6446/app
-      username: ${DB_USER:${APP_USER}}
-      password: ${DB_PASSWORD:${APP_PASSWORD}}
+      pool-name: springboot-writer
+      jdbc-url: jdbc:mysql://${DB_HOST:mysql-router}:6446/labapp_springboot
+      username: ${DB_USER:${LABAPP_SPRINGBOOT_DB_USER}}
+      password: ${DB_PASSWORD:${LABAPP_SPRINGBOOT_DB_PASSWORD}}
       read-only: false
       maximum-pool-size: 10
       minimum-idle: 2
@@ -28,13 +32,14 @@ app:
         tcpKeepAlive: true
         cachePrepStmts: true
         useServerPrepStmts: false
+        connectionAttributes: "program_name:labapp-springboot,pool:writer"   # visible in performance_schema.session_connect_attrs
 
     # Read-only transactions: HAProxy -> MySQL Router 6447 -> a SECONDARY
     reader:
-      pool-name: reader
-      jdbc-url: jdbc:mysql://${DB_HOST:mysql-router}:6447/app
-      username: ${DB_USER:${APP_USER}}
-      password: ${DB_PASSWORD:${APP_PASSWORD}}
+      pool-name: springboot-reader
+      jdbc-url: jdbc:mysql://${DB_HOST:mysql-router}:6447/labapp_springboot
+      username: ${DB_USER:${LABAPP_SPRINGBOOT_DB_USER}}
+      password: ${DB_PASSWORD:${LABAPP_SPRINGBOOT_DB_PASSWORD}}
       read-only: true
       maximum-pool-size: 10
       minimum-idle: 2
@@ -50,6 +55,7 @@ app:
         tcpKeepAlive: true
         cachePrepStmts: true
         useServerPrepStmts: false
+        connectionAttributes: "program_name:labapp-springboot,pool:reader"
   tx:
     timeout-seconds: 10                 # TransactionTemplate timeout (statement timeout)
   retry:
@@ -57,6 +63,8 @@ app:
   load:
     enabled: ${LOAD_ENABLED:false}      # or: curl -X POST localhost:8080/load/start
     delay-ms: 200                       # pause between load iterations
+  probe:
+    interval-ms: 1000
 management:
   endpoints:
     web:

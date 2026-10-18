@@ -19,3 +19,13 @@ scrape_configs:
   - job_name: haproxy
     static_configs:
       - targets: ["mysql-router:8404"]
+  # App running on the Mac in dev mode instead? Use host.docker.internal:8081 (Spring) / :8091 (Go).
+  - job_name: labapp-springboot
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["labapp-springboot:8080"]
+
+  - job_name: labapp-go
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["labapp-go:8080"]

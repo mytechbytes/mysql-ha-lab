@@ -24,6 +24,9 @@ cp .env.example .env      # then set real passwords; .env is git-ignored
 | `APP_USER` / `APP_PASSWORD` | `m`, `w`, `tx` | Least-privilege account for test data in `app.*` |
 | `EXPORTER_USER` / `EXPORTER_PASSWORD` | `monitoring-init`, exporters | Read-only account for metrics ([Lesson 3](03-monitoring.md)) |
 | `GRAFANA_ADMIN_PASSWORD` | Grafana | Password of the Grafana `admin` login |
+| `LABAPP_SPRINGBOOT_IMAGE` / `LABAPP_GO_IMAGE` | Compose `labapp-*` services | Image names for the lab apps ([Lesson 10](10-spring-app.md)) |
+| `LABAPP_SPRINGBOOT_DB_USER` / `_PASSWORD` | `labapp-springboot` | Its own account, only on schema `labapp_springboot` |
+| `LABAPP_GO_DB_USER` / `_PASSWORD` | `labapp-go` | Its own account, only on schema `labapp_go` |
 
 ## `scripts/helpers.sh`: one command per terminal
 
@@ -119,6 +122,8 @@ For `mysqlsh` (used by `mstatus`) the password goes through standard input inste
 | `clusteradmin` | Cluster management | Group Replication, clone, metadata, user creation. **No rights on application data.** | `dba.configureInstance()` in `cluster-init` |
 | `exporter` | Read-only metrics | `PROCESS, REPLICATION CLIENT, SELECT` on `*.*` | `monitoring-init` ([Lesson 3](03-monitoring.md)) |
 | `app` | Test data | `SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER` on `app.*` only | You, below |
+| `labapp_springboot` | Spring Boot lab app | Same rights, on `labapp_springboot.*` only | You, [below](#create-the-lab-app-users) |
+| `labapp_go` | Go lab app | Same rights, on `labapp_go.*` only | You, [below](#create-the-lab-app-users) |
 
 `clusteradmin` can create the `app` database but gets `ERROR 1142 ... INSERT command denied` when writing to it. That's intended: data gets its own least-privilege account.
 
@@ -146,6 +151,36 @@ w "CREATE TABLE IF NOT EXISTS app.t (id INT AUTO_INCREMENT PRIMARY KEY, v INT, c
 ```bash
 w "SELECT @@hostname, CURRENT_USER()"     # primary's name, app@%
 tx 1                                      # OK ... node=<primary>
+```
+
+### Create the lab app users
+
+Each lab app ([Lesson 10](10-spring-app.md)) gets **its own schema and its own user**, so their
+data, connections and grants never mix with each other or with the `app` schema of the helpers.
+The apps create their tables themselves at startup.
+
+```bash
+mroot -e "
+  CREATE DATABASE IF NOT EXISTS labapp_springboot;
+  CREATE USER IF NOT EXISTS '$LABAPP_SPRINGBOOT_DB_USER'@'%' IDENTIFIED BY '$LABAPP_SPRINGBOOT_DB_PASSWORD';
+  ALTER USER '$LABAPP_SPRINGBOOT_DB_USER'@'%' IDENTIFIED BY '$LABAPP_SPRINGBOOT_DB_PASSWORD';
+  GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER ON labapp_springboot.* TO '$LABAPP_SPRINGBOOT_DB_USER'@'%';
+
+  CREATE DATABASE IF NOT EXISTS labapp_go;
+  CREATE USER IF NOT EXISTS '$LABAPP_GO_DB_USER'@'%' IDENTIFIED BY '$LABAPP_GO_DB_PASSWORD';
+  ALTER USER '$LABAPP_GO_DB_USER'@'%' IDENTIFIED BY '$LABAPP_GO_DB_PASSWORD';
+  GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, INDEX, ALTER ON labapp_go.* TO '$LABAPP_GO_DB_USER'@'%';"
+
+mroot -e "SELECT user, host FROM mysql.user WHERE user LIKE 'labapp%'"
+```
+
+Which app holds which connections, per node (both apps set `program_name` as a connection attribute):
+
+```bash
+for n in mysql1 mysql2 mysql3; do
+  mroot -h $n -P 3306 -N -e "SELECT @@hostname, ATTR_VALUE, COUNT(*) FROM performance_schema.session_connect_attrs
+                             WHERE ATTR_NAME = 'program_name' AND ATTR_VALUE LIKE 'labapp%' GROUP BY ATTR_VALUE"
+done
 ```
 
 ---

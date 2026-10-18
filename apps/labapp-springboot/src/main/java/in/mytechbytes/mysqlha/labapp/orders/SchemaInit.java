@@ -27,6 +27,13 @@ public class SchemaInit implements ApplicationRunner {
               KEY ix_created_at (created_at)
             )""";
 
+    private static final String HEARTBEAT_DDL = """
+        CREATE TABLE IF NOT EXISTS heartbeat (
+          id       TINYINT PRIMARY KEY,
+          beat_at  TIMESTAMP(3) NOT NULL,
+          node     VARCHAR(64)  NOT NULL
+        )""";
+
     private final JdbcClient jdbc;
     private final TransactionTemplate writeTx;
     private final Retry retry;
@@ -39,7 +46,9 @@ public class SchemaInit implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) throws Exception {
-        retry.run("schema", () -> writeTx.execute(s -> jdbc.sql(DDL).update()));
-        log.info("table app.orders ready");
+        retry.run(Retry.Kind.WRITE, "schema", () -> writeTx.execute(s -> jdbc.sql(DDL).update()));
+        log.info("table orders ready");
+        retry.run(Retry.Kind.WRITE, "schema", () -> writeTx.execute(s -> jdbc.sql(HEARTBEAT_DDL).update()));
+        log.info("table heartbeat ready");
     }
 }

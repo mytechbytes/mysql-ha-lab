@@ -3,6 +3,13 @@
 client.cnf
 tx.log
 routers.txt
-apps/labapp/mvnw
-apps/labapp/mvnw.cmd
-apps/labapp/.mvn/
+# lab apps: build output and local tooling
+apps/*/target/
+apps/*/mvnw
+apps/*/mvnw.cmd
+apps/*/.mvn/
+apps/*/.idea/
+apps/*/.vscode/
+apps/*/HELP.md
+apps/*/bin/
+apps/*/*.log

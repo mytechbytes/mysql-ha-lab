@@ -1,0 +1,30 @@
+app:
+  datasource:
+    writer:
+      jdbc-url: jdbc:mysql://localhost:6446/labapp_springboot
+      maximum-pool-size: 5
+    reader:
+      jdbc-url: jdbc:mysql://localhost:6447/labapp_springboot
+      maximum-pool-size: 5
+  tx:
+    timeout-seconds: 10
+  retry:
+    max-attempts: 8
+  load:
+    enabled: false
+server:
+  port: 8081
+
+logging:
+  level:
+    in.mytechbytes.mysqlha.labapp: DEBUG
+    org.springframework.jdbc.core: INFO
+    org.springframework.jdbc.datasource: INFO
+    com.zaxxer.hikari.pool.HikariPool: INFO
+
+spring:
+  config:
+    import: "optional:file:../../.env[.properties]"
+  devtools:
+    restart:
+      enabled: true

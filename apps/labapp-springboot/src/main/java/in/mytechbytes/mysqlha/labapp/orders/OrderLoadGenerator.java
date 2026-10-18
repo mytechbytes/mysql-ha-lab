@@ -15,7 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Component
-public class LoadGenerator {
+public class OrderLoadGenerator {
 
     private static final Logger log = LoggerFactory.getLogger("load");
 
@@ -32,8 +32,8 @@ public class LoadGenerator {
     private final AtomicLong stale = new AtomicLong();
     private final AtomicLong maxMs = new AtomicLong();
 
-    public LoadGenerator(OrderService orders, MeterRegistry registry,
-                         @Value("${app.load.enabled:false}") boolean enabled) {
+    public OrderLoadGenerator(OrderService orders, MeterRegistry registry,
+                              @Value("${app.load.enabled:false}") boolean enabled) {
         this.orders = orders;
         this.registry = registry;
         this.running = new AtomicBoolean(enabled);

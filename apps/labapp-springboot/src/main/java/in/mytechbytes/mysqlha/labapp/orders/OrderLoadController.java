@@ -1,6 +1,5 @@
-package in.mytechbytes.mysqlha.labapp.controllers;
+package in.mytechbytes.mysqlha.labapp.orders;
 
-import in.mytechbytes.mysqlha.labapp.orders.LoadGenerator;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -10,11 +9,11 @@ import java.util.Map;
 
 @RestController
 @RequestMapping("/load")
-public class LoadController {
+public class OrderLoadController {
 
-    private final LoadGenerator load;
+    private final OrderLoadGenerator load;
 
-    public LoadController(LoadGenerator load) { this.load = load; }
+    public OrderLoadController(OrderLoadGenerator load) { this.load = load; }
 
     @PostMapping("/start")  public Map<String, Object> start()  { load.start(); return load.status(); }
     @PostMapping("/stop")   public Map<String, Object> stop()   { load.stop();  return load.status(); }

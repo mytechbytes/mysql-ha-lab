@@ -75,7 +75,7 @@ and once, create the app user and test table ([Lesson 0](docs/00-setup.md#create
 | `localhost:6450` | MySQL read/write splitting, through HAProxy |
 | http://localhost:8404/stats | HAProxy: router health and sessions |
 | http://localhost:9090 | Prometheus |
-| http://localhost:3000 | Grafana → *MySQL HA → MySQL InnoDB Cluster* |
+| http://localhost:3000 | Grafana → *MySQL HA* → **1 · Overview** (home), then 2 · Cluster, 3 · Routers, 4 · Applications, 5 · Failover, 6 · Pools |
 
 Stop: `docker compose --profile monitoring stop`. Wipe: `docker compose --profile monitoring down -v`. More in [Operations](docs/operations.md).
 
@@ -106,7 +106,7 @@ Stop: `docker compose --profile monitoring stop`. Wipe: `docker compose --profil
     ├── prometheus.yml        # scrape config                         → Lesson 3
     └── grafana/
         ├── provisioning/     # datasource + dashboard provider       → Lesson 3
-        └── dashboards/       # mysql-cluster.json                    → Lesson 3
+        └── dashboards/       # 1-overview … 6-connection-pools.json → Lessons 3, 4, 10
 ```
 
 ---

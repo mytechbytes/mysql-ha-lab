@@ -162,8 +162,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
               },
               {
                 "color": "orange",
@@ -232,8 +236,12 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "red",
+                "color": "text",
                 "value": null
+              },
+              {
+                "color": "red",
+                "value": 0
               },
               {
                 "color": "orange",
@@ -405,7 +413,7 @@
     {
       "type": "timeseries",
       "title": "Operations / sec by outcome",
-      "description": "ok = first attempt, retried = after retry, failed = gave up.",
+      "description": "One line per kind and outcome: ok = first attempt, retried = succeeded after retry, failed = gave up.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -430,7 +438,7 @@
             "showPoints": "never",
             "spanNulls": false,
             "stacking": {
-              "mode": "normal",
+              "mode": "none",
               "group": "A"
             }
           },

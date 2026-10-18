@@ -204,7 +204,50 @@ docker compose --profile monitoring up -d prometheus      # picks up extra_hosts
 docker compose --profile monitoring up -d grafana         # new home dashboard + the 6 dashboard files
 ```
 
+## Test: primary crash with the app under load
+
+```bash
+curl -s -X POST localhost:8080/load/start      # write + read-back, ~5 per second
+docker kill $(q 6446)                          # crash the current primary
+sleep 30; docker start mysql1 mysql2 mysql3    # bring it back (it rejoins as SECONDARY)
+curl -s localhost:8080/load/status; echo
+curl -s localhost:8080/health/db; echo         # outage start / end / first error
+```
+
+Results in this lab (three crashes in 15 minutes: mysql1 → mysql2 → mysql1 → mysql2):
+
+| What | Measured | Where to see it |
+|---|---|---|
+| Write / read success | **100 % / 100 %** | 1 · Overview, 4 · Applications |
+| Failed operations (user got a 503) | **0** | 4 · Applications |
+| Retried operations (failover hidden by retry) | **1** write | 4 · Applications |
+| Slowest write during the failover | **≈ 8 s** | 4 · Applications → latency |
+| App writer path down (probe) | **7.1 s**; reader path not affected | 5 · Failover & Outages, `/health/db` |
+| Writer pool | timeouts up to ~4 / min, then refilled | 6 · Connection Pools |
+| Order of events | node down → new primary → routers dip ~2 s → app writer recovers | 5 · Failover & Outages timelines |
+
+Compare Lesson 6: the same crash cost `txloop` about 6 s of `FAIL` lines. The application sees the
+same outage, but as **one slow request instead of errors**, because:
+
+1. pools with short timeouts (`connection-timeout` 3 s, `connectTimeout` 3 s, `socketTimeout` 15 s) never
+   hang on a dead connection,
+2. `Retry` repeats the whole transaction on failover errors (2013, 08S01, pool timeout, 1290, …) with
+   back-off up to ~20 s in total, and
+3. the `request_id` unique key makes a retried INSERT safe even if the first COMMIT went through.
+
+The probe sees ~7 s rather than Lesson 6's ~6 s because it checks once per second and has to open a
+new connection through HAProxy and the router after the failover.
+
+Things that were found and fixed while building this lesson:
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| All writes take ~30 s and fail | Pool could not connect (user missing); a wrapped 1045 was retried as a pool timeout | `cluster-init` creates the app users; `Retry` fails fast on 1044/1045/1049/1142/1146 and shows the root cause |
+| One fake writer outage at every start | Probe ran before `SchemaInit` created `heartbeat` | Probe and load loop start on `ApplicationReadyEvent` |
+| "Retried ops" stayed 0 although a write was retried | A Prometheus counter that first appears with value 1 shows no `increase()` | `Retry` registers all `app_db_ops_total` / error counters at 0 on startup |
+| Reads always on the primary | `readTx` injected with the `writeTx` qualifier | Correct qualifier; `/whoami` shows `reader` = a secondary |
+
 ## Next
 
-- 10.2 planned switchover and 10.3 primary crash with the load loop running
+- Planned switchover under load (`mprimary`): expect `1290` absorbed by retry, no failures
 - 10.4 lost commit (dedup), 10.5 stale reads, 10.6 router failure

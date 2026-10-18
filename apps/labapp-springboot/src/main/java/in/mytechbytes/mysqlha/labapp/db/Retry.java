@@ -42,6 +42,16 @@ public class Retry {
     public Retry(@Value("${app.retry.max-attempts:8}") int maxAttempts, MeterRegistry registry) {
         this.maxAttempts = maxAttempts;
         this.registry = registry;
+        // Create every counter at 0 up front. A series that first appears with value 1 is invisible
+        // to Prometheus increase()/rate(): the first retried or failed operation would not be counted.
+        for (Kind k : Kind.values()) {
+            for (String outcome : new String[]{"ok", "retried", "failed"}) {
+                registry.counter("app.db.ops", "kind", k.tag(), "outcome", outcome);
+            }
+            for (String error : new String[]{"1290", "2013", "08S01", "08001", "pool-timeout"}) {
+                registry.counter("app.db.attempt.errors", "kind", k.tag(), "error", error);
+            }
+        }
     }
 
     /** body = one COMPLETE transaction (TransactionTemplate.execute). */
